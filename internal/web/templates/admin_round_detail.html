@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Админка — Раунд {{.Round.Number}}</title>
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <div>
+          <div class="kicker">Админка</div>
+          <h1 class="title">Раунд {{.Round.Number}} {{if .Round.Name}}— {{.Round.Name}}{{end}}</h1>
+          <div class="muted" style="margin-top: 6px;">
+            Старт: <span class="mono">{{formatTime .Round.StartedAt}}</span>
+            &nbsp;·&nbsp;
+            Финиш: <span class="mono">{{formatTime .Round.EndedAt}}</span>
+          </div>
+        </div>
+        <nav class="muted">
+          <a href="/admin/rounds" class="link">← Раунды</a>
+          &nbsp;·&nbsp;
+          <a href="/admin/game" class="link">Ход игры</a>
+          &nbsp;·&nbsp;
+          <a href="/admin/tasks" class="link">Задачи</a>
+          &nbsp;·&nbsp;
+          <a href="/" class="link">Дашборд</a>
+        </nav>
+      </header>
+
+      {{if .FlashErr}}
+      <section class="card" style="border-color: rgba(248,113,113,0.35);">
+        <div style="padding: 12px 14px;">
+          <div class="muted">Ошибка: {{.FlashErr}}</div>
+        </div>
+      </section>
+      <div style="height: 12px;"></div>
+      {{end}}
+      {{if .FlashOK}}
+      <section class="card" style="border-color: rgba(52,211,153,0.35);">
+        <div style="padding: 12px 14px;">
+          <div class="muted">ОК: {{.FlashOK}}</div>
+        </div>
+      </section>
+      <div style="height: 12px;"></div>
+      {{end}}
+
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+          <div class="kicker">Выполнения задач (отметь чекбоксы и нажми “Сохранить”)</div>
+        </div>
+
+        <form method="post" action="/admin/rounds/{{.Round.ID}}/completions">
+          <div style="overflow:auto;">
+            <table class="table" aria-label="Выполнения">
+              <thead>
+                <tr>
+                  <th style="min-width: 260px;">Задача</th>
+                  <th style="width: 90px;">Баллы</th>
+                  {{range .Teams}}
+                    <th style="min-width: 140px;">{{.Name}}</th>
+                  {{end}}
+                </tr>
+              </thead>
+              <tbody>
+                {{range $task := .Tasks}}
+                <tr>
+                  <td>
+                    <div class="team-name">{{$task.Title}}</div>
+                    {{if $task.Description}}<div class="muted" style="margin-top: 4px;">{{$task.Description}}</div>{{end}}
+                    {{if not $task.Active}}<div class="muted" style="margin-top: 4px;">(неактивна)</div>{{end}}
+                  </td>
+                  <td class="mono">{{$task.Points}}</td>
+                  {{range $team := $.Teams}}
+                    <td class="right">
+                      <input
+                        type="checkbox"
+                        name="c_{{$team.ID}}_{{$task.ID}}"
+                        {{if checked $.Checked $team.ID $task.ID}}checked{{end}}
+                        style="transform: scale(1.2);"
+                      />
+                    </td>
+                  {{end}}
+                </tr>
+                {{end}}
+              </tbody>
+            </table>
+          </div>
+          <div style="padding: 14px;">
+            <button class="btn" type="submit">Сохранить</button>
+          </div>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>
+
