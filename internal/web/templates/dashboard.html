@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Resource Battle — Лидерборд</title>
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <div>
+          <div class="kicker">Resource Battle</div>
+          <h1 class="title">Лидерборд</h1>
+        </div>
+      </header>
+
+      <section class="card">
+        <table class="table" aria-label="Лидерборд">
+          <thead>
+            <tr>
+              <th class="col-place">Место</th>
+              <th>Команда</th>
+              <th class="col-points">Баллы</th>
+              <th class="col-actions"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {{range .Rows}}
+            <tr>
+              <td class="mono">{{.Place}}</td>
+              <td>
+                <div class="team-name">{{.TeamName}}</div>
+              </td>
+              <td class="mono">{{.Points}}</td>
+              <td class="right">
+                <button class="btn leaderboard-details">Детали</button>
+              </td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+      </section>
+
+      <footer class="footer">
+        <div class="muted">Обновляется при перезагрузке страницы.</div>
+      </footer>
+    </main>
+
+    <div class="modal-backdrop" id="modalBackdrop" hidden></div>
+    <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
+      <div class="modal-header">
+        <div>
+          <div class="kicker">Детализация</div>
+          <div class="modal-title" id="modalTitle">Все команды</div>
+        </div>
+        <button class="icon-btn" id="modalClose" aria-label="Закрыть">×</button>
+      </div>
+      <div class="modal-body">
+        <table class="table" aria-label="Детализация по командам">
+          <thead>
+            <tr>
+              <th class="col-place">Место</th>
+              <th>Команда</th>
+              <th style="width: 140px;">Баллы</th>
+              <th style="width: 190px;">Выполнено задач</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{range .Rows}}
+            <tr>
+              <td class="mono">{{.Place}}</td>
+              <td><div class="team-name">{{.TeamName}}</div></td>
+              <td class="mono">{{.Points}}</td>
+              <td class="mono">{{.Tasks}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+        <div class="muted" style="margin-top:8px;">Задачи считаются с учётом повторяемых задач и их количества.</div>
+      </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
+

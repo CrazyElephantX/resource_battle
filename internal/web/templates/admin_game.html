@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Админка — Ход игры</title>
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <div>
+          <div class="kicker">Админка</div>
+          <h1 class="title">Ход игры</h1>
+        </div>
+        <nav class="muted">
+          <a href="/" class="link">Дашборд</a>
+          &nbsp;·&nbsp;
+          <a href="/admin/tasks" class="link">Задачи</a>
+          &nbsp;·&nbsp;
+          <a href="/admin/rounds" class="link">Раунды</a>
+        </nav>
+      </header>
+
+      {{if .FlashErr}}
+      <section class="card" style="border-color: rgba(248,113,113,0.35);">
+        <div style="padding: 12px 14px;">
+          <div class="muted">Ошибка: {{.FlashErr}}</div>
+        </div>
+      </section>
+      <div style="height: 12px;"></div>
+      {{end}}
+      {{if .FlashOK}}
+      <section class="card" style="border-color: rgba(52,211,153,0.35);">
+        <div style="padding: 12px 14px;">
+          <div class="muted">ОК: {{.FlashOK}}</div>
+        </div>
+      </section>
+      <div style="height: 12px;"></div>
+      {{end}}
+
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+          <div class="kicker">Выбор команды</div>
+        </div>
+        <form method="get" action="/admin/game" style="padding: 14px; display:flex; gap:10px; flex-wrap: wrap; align-items: end;">
+          <label class="muted">
+            Команда
+            <select name="team" class="input" style="margin-top:6px; min-width: 240px;">
+              <option value="">— выбери —</option>
+              {{range .Teams}}
+                <option value="{{.ID}}" {{if eq $.TeamID .ID}}selected{{end}}>{{.Name}}</option>
+              {{end}}
+            </select>
+          </label>
+          <button class="btn" type="submit">Открыть</button>
+        </form>
+      </section>
+
+      {{if gt .TeamID 0}}
+      <div style="height: 14px;"></div>
+
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+          <div class="kicker">Одноразовые задачи (выполнить 1 раз)</div>
+        </div>
+        <form method="post" action="/admin/game/complete" style="padding: 14px; display:flex; gap:10px; flex-wrap: wrap; align-items: end;">
+          <input type="hidden" name="team_id" value="{{.TeamID}}" />
+          <label class="muted" style="flex: 1; min-width: 240px;">
+            Задача
+            <select name="task_id" class="input" style="margin-top:6px; width: 100%;">
+              {{range .OneTimeTasks}}
+                <option value="{{.ID}}">{{.Title}} ({{.Points}})</option>
+              {{end}}
+            </select>
+          </label>
+          <label class="muted">
+            Раунд
+            <select name="round_id" class="input" style="margin-top:6px; min-width: 140px;">
+              {{range .Rounds}}
+                <option value="{{.ID}}">{{.Name}}</option>
+              {{end}}
+            </select>
+          </label>
+          <button class="btn" type="submit">Проставить</button>
+        </form>
+        <div class="muted" style="padding: 0 14px 14px;">
+          Если задача уже была выполнена, мы просто перенесём её на выбранный раунд.
+        </div>
+      </section>
+
+      <div style="height: 14px;"></div>
+
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+          <div class="kicker">Повторяемые задачи (можно сколько угодно раз)</div>
+        </div>
+        <div style="padding: 14px; display:flex; gap:14px; flex-wrap: wrap;">
+          {{range .RepeatableTasks}}
+          <div style="flex: 1; min-width: 260px; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; background: rgba(255,255,255,0.02);">
+            <div class="team-name">{{.Title}}</div>
+            <div class="muted" style="margin-top:4px;">Баллы за раз: <span class="mono">{{.Points}}</span></div>
+            <div style="margin-top:10px; display:flex; gap:10px; flex-wrap: wrap;">
+              <form method="post" action="/admin/game/repeatable" style="display:flex; gap:10px; align-items:end; flex-wrap: wrap;">
+                <input type="hidden" name="team_id" value="{{$.TeamID}}" />
+                <input type="hidden" name="task_id" value="{{.ID}}" />
+                <label class="muted">
+                  Раунд
+                  <select name="round_id" class="input" style="margin-top:6px; min-width: 140px;">
+                    {{range $.Rounds}}
+                      <option value="{{.ID}}">{{.Name}}</option>
+                    {{end}}
+                  </select>
+                </label>
+                <label class="muted">
+                  Кол-во (дельта)
+                  <input name="delta" type="number" value="1" class="input" style="margin-top:6px; width: 120px;" />
+                </label>
+                <button class="btn" type="submit">Применить</button>
+              </form>
+            </div>
+            <div class="muted" style="margin-top:8px;">Подсказка: чтобы убрать, укажи отрицательное значение.</div>
+          </div>
+          {{end}}
+        </div>
+      </section>
+
+      <div style="height: 14px;"></div>
+
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+          <div class="kicker">Выполненные задачи команды</div>
+        </div>
+        <div style="overflow:auto;">
+          <table class="table" aria-label="Выполненные задачи">
+            <thead>
+              <tr>
+                <th style="width: 72px;">ID</th>
+                <th>Задача</th>
+                <th style="width: 140px;">Раунд</th>
+                <th style="width: 120px;">Баллы</th>
+                <th style="width: 110px;">Кол-во</th>
+                <th style="width: 140px;">Итого</th>
+                <th style="width: 120px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {{range .Completions}}
+              <tr>
+                <td class="mono">{{.ID}}</td>
+                <td>
+                  <div class="team-name">{{.TaskTitle}}</div>
+                  {{if .TaskRepeatable}}<div class="muted" style="margin-top:4px;">повторяемая</div>{{end}}
+                </td>
+                <td class="mono">{{.RoundName}}</td>
+                <td class="mono">{{.TaskPoints}}</td>
+                <td class="mono">{{.Count}}</td>
+                <td class="mono">{{.TotalPoints}}</td>
+                <td class="right">
+                  <form method="post" action="/admin/game/delete" style="display:inline;">
+                    <input type="hidden" name="team_id" value="{{$.TeamID}}" />
+                    <input type="hidden" name="completion_id" value="{{.ID}}" />
+                    <button class="btn" type="submit">Удалить</button>
+                  </form>
+                </td>
+              </tr>
+              {{end}}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      {{end}}
+    </main>
+  </body>
+</html>
+

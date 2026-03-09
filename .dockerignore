@@ -1,0 +1,7 @@
+.git
+.idea
+.gigaide
+.cache
+*.log
+.DS_Store
+**/*.md

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Админка — Задачи</title>
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <div>
+          <div class="kicker">Админка</div>
+          <h1 class="title">Задачи</h1>
+        </div>
+        <nav class="muted">
+          <a href="/" class="link">Дашборд</a>
+          &nbsp;·&nbsp;
+          <a href="/admin/game" class="link">Ход игры</a>
+          &nbsp;·&nbsp;
+          <a href="/admin/rounds" class="link">Раунды</a>
+        </nav>
+      </header>
+
+      {{if .FlashErr}}
+      <section class="card" style="border-color: rgba(248,113,113,0.35);">
+        <div style="padding: 12px 14px;">
+          <div class="muted">Ошибка: {{.FlashErr}}</div>
+        </div>
+      </section>
+      <div style="height: 12px;"></div>
+      {{end}}
+      {{if .FlashOK}}
+      <section class="card" style="border-color: rgba(52,211,153,0.35);">
+        <div style="padding: 12px 14px;">
+          <div class="muted">ОК: {{.FlashOK}}</div>
+        </div>
+      </section>
+      <div style="height: 12px;"></div>
+      {{end}}
+
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+          <div class="kicker">Новая задача</div>
+        </div>
+        <form method="post" action="/admin/tasks" style="padding: 14px; display: grid; gap: 10px;">
+          <label class="muted">
+            Название
+            <input name="title" required style="width: 100%; margin-top: 6px;" class="input" />
+          </label>
+          <label class="muted">
+            Описание
+            <textarea name="description" rows="3" style="width: 100%; margin-top: 6px;" class="input"></textarea>
+          </label>
+          <label class="muted">
+            Баллы
+            <input name="points" type="number" value="0" required style="width: 160px; margin-top: 6px;" class="input" />
+          </label>
+          <div>
+            <button class="btn" type="submit">Создать</button>
+          </div>
+        </form>
+      </section>
+
+      <div style="height: 14px;"></div>
+
+      <section class="card">
+        <table class="table" aria-label="Задачи">
+          <thead>
+            <tr>
+              <th style="width: 72px;">ID</th>
+              <th>Задача</th>
+              <th style="width: 110px;">Баллы</th>
+              <th style="width: 110px;">Статус</th>
+              <th style="width: 240px;"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {{range .Tasks}}
+            <tr>
+              <td class="mono">{{.ID}}</td>
+              <td>
+                <form method="post" action="/admin/tasks/{{.ID}}" style="display: grid; gap: 8px;">
+                  <input name="title" value="{{.Title}}" required class="input" />
+                  <textarea name="description" rows="2" class="input">{{.Description}}</textarea>
+                  <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
+                    <label class="muted">Баллы</label>
+                    <input name="points" type="number" value="{{.Points}}" required style="width: 110px;" class="input" />
+                    <button class="btn" type="submit">Сохранить</button>
+                  </div>
+                </form>
+              </td>
+              <td class="mono">{{.Points}}</td>
+              <td class="muted">{{if .Active}}активна{{else}}выкл{{end}}</td>
+              <td class="right">
+                <form method="post" action="/admin/tasks/{{.ID}}/toggle" style="display:inline;">
+                  <button class="btn" type="submit">{{if .Active}}Выключить{{else}}Включить{{end}}</button>
+                </form>
+              </td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>
+

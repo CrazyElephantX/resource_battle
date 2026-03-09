@@ -13,6 +13,7 @@ import (
 	"resource_battle/internal/app"
 	"resource_battle/internal/config"
 	"resource_battle/internal/db"
+	"resource_battle/internal/migrate"
 )
 
 func main() {
@@ -26,6 +27,10 @@ func main() {
 		log.Fatalf("db open: %v", err)
 	}
 	defer pool.Close()
+
+	if err := migrate.Up(ctx, pool); err != nil {
+		log.Fatalf("migrate: %v", err)
+	}
 
 	srv := &http.Server{
 		Addr:              cfg.Addr(),

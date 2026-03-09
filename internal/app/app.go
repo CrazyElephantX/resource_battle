@@ -6,6 +6,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"resource_battle/internal/web"
 )
 
 func New(pool *pgxpool.Pool) http.Handler {
@@ -20,13 +22,32 @@ func New(pool *pgxpool.Pool) http.Handler {
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	// TODO: dashboard/admin routes.
+	tpl := web.MustTemplates()
+
+	static, err := staticHandler()
+	if err != nil {
+		panic(err)
+	}
+	r.Mount("/static/", static)
+
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		_, _ = w.Write([]byte("resource_battle: TODO UI"))
+		rows, err := leaderboard(r.Context(), pool)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_ = tpl.ExecuteTemplate(w, "dashboard.html", dashboardPageData{Rows: rows})
 	})
 
-	_ = pool // will be used by handlers
+	r.Route("/api", func(r chi.Router) {
+		r.Get("/teams/{teamID}/stats", handleTeamStats(pool))
+	})
+
+	r.Route("/admin", func(r chi.Router) {
+		mountAdmin(r, pool, tpl)
+	})
+
 	return r
 }
 
