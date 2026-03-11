@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QR‑коды — Авторы и партнёры</title>
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <div>
+          <div class="kicker">Resource Battle</div>
+          <h1 class="title">QR‑коды</h1>
+        </div>
+        <div class="header-right">
+          <div class="logo-main">
+            <img src="/static/main-logo.png" alt="Логотип" />
+          </div>
+          <div class="logo-partner">
+            <img src="/media/partner-logo" alt="Логотип партнёра" class="partner-logo-img" />
+          </div>
+        </div>
+      </header>
+
+      {{if .Authors}}
+      <section class="card">
+        <div style="padding: 14px;">
+          <div class="kicker">Авторы</div>
+        </div>
+        <div class="qr-grid">
+          {{range .Authors}}
+          <div class="qr-item">
+            <img src="/media/qr/{{.ID}}" alt="{{.Title}}" class="qr-img" />
+            <div class="team-name" style="margin-top:8px;">{{.Title}}</div>
+            {{if .Description}}<div class="muted" style="margin-top:4px;">{{.Description}}</div>{{end}}
+          </div>
+          {{end}}
+        </div>
+      </section>
+      {{end}}
+
+      {{if .Partners}}
+      <div style="height:16px;"></div>
+      <section class="card">
+        <div style="padding: 14px;">
+          <div class="kicker">Партнёры</div>
+        </div>
+        <div class="qr-grid">
+          {{range .Partners}}
+          <div class="qr-item">
+            <img src="/media/qr/{{.ID}}" alt="{{.Title}}" class="qr-img" />
+            <div class="team-name" style="margin-top:8px;">{{.Title}}</div>
+            {{if .Description}}<div class="muted" style="margin-top:4px;">{{.Description}}</div>{{end}}
+          </div>
+          {{end}}
+        </div>
+      </section>
+      {{end}}
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
+

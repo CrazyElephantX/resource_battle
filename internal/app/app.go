@@ -30,6 +30,11 @@ func New(pool *pgxpool.Pool) http.Handler {
 	}
 	r.Mount("/static/", static)
 
+	r.Route("/media", func(r chi.Router) {
+		r.Get("/partner-logo", handlePartnerLogo(pool))
+		r.Get("/qr/{id}", handleQRImage(pool))
+	})
+
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		rows, err := leaderboard(r.Context(), pool)
 		if err != nil {
@@ -40,13 +45,11 @@ func New(pool *pgxpool.Pool) http.Handler {
 		_ = tpl.ExecuteTemplate(w, "dashboard.html", dashboardPageData{Rows: rows})
 	})
 
-	r.Route("/api", func(r chi.Router) {
-		r.Get("/teams/{teamID}/stats", handleTeamStats(pool))
-	})
-
 	r.Route("/admin", func(r chi.Router) {
 		mountAdmin(r, pool, tpl)
 	})
+
+	r.Get("/qr", handleQRPage(pool, tpl))
 
 	return r
 }

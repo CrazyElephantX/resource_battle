@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"sort"
 	"strconv"
@@ -62,6 +63,20 @@ type adminRoundDetailData struct {
 
 type completionPair struct{ teamID, taskID int64 }
 
+type adminQRItem struct {
+	ID          int64
+	Kind        string
+	KindLabel   string
+	Title       string
+	Description string
+}
+
+type adminSettingsPageData struct {
+	QRCodes []adminQRItem
+	FlashOK string
+	FlashErr string
+}
+
 func mountAdmin(r chi.Router, pool *pgxpool.Pool, tpl *template.Template) {
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/admin/tasks", http.StatusFound)
@@ -84,6 +99,10 @@ func mountAdmin(r chi.Router, pool *pgxpool.Pool, tpl *template.Template) {
 	r.Post("/game/complete", adminGameComplete(pool))
 	r.Post("/game/repeatable", adminGameRepeatable(pool))
 	r.Post("/game/delete", adminGameDelete(pool))
+
+	r.Get("/settings", adminSettingsGet(pool, tpl))
+	r.Post("/settings/logo", adminSettingsLogo(pool))
+	r.Post("/settings/qr", adminSettingsQR(pool))
 }
 
 func renderAdmin(tpl *template.Template, w http.ResponseWriter, name string, data any) {
@@ -869,5 +888,134 @@ RETURNING count`, teamID, roundID, taskID, delta).Scan(&newCount)
 		}
 	}
 	return tx.Commit(ctx)
+}
+
+// --- Settings (partner logo + QR codes) ---
+
+func adminSettingsGet(pool *pgxpool.Pool, tpl *template.Template) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ok, e := flashFromQuery(r)
+		items, err := listAllQRCodes(r.Context(), pool)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		renderAdmin(tpl, w, "admin_settings.html", adminSettingsPageData{
+			QRCodes:  items,
+			FlashOK:  ok,
+			FlashErr: e,
+		})
+	}
+}
+
+func adminSettingsLogo(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseMultipartForm(1 << 20); err != nil { // 1 MiB
+			http.Redirect(w, r, "/admin/settings?err=bad+form", http.StatusFound)
+			return
+		}
+		filename, mime, data, err := readUploadedImage(r, "logo", 512*1024)
+		if err != nil {
+			http.Redirect(w, r, "/admin/settings?err=bad+file", http.StatusFound)
+			return
+		}
+		_, err = pool.Exec(r.Context(), `
+INSERT INTO app_settings(id, partner_logo_filename, partner_logo_mime, partner_logo_data)
+VALUES (1,$1,$2,$3)
+ON CONFLICT (id) DO UPDATE
+SET partner_logo_filename=$1,
+    partner_logo_mime=$2,
+    partner_logo_data=$3,
+    updated_at=now()`, filename, mime, data)
+		if err != nil {
+			http.Redirect(w, r, "/admin/settings?err=save+failed", http.StatusFound)
+			return
+		}
+		http.Redirect(w, r, "/admin/settings?ok=logo+updated", http.StatusFound)
+	}
+}
+
+func adminSettingsQR(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			http.Redirect(w, r, "/admin/settings?err=bad+form", http.StatusFound)
+			return
+		}
+		kind := strings.TrimSpace(r.FormValue("kind"))
+		if kind != "author" && kind != "partner" {
+			http.Redirect(w, r, "/admin/settings?err=bad+kind", http.StatusFound)
+			return
+		}
+		title := strings.TrimSpace(r.FormValue("title"))
+		desc := strings.TrimSpace(r.FormValue("description"))
+		if title == "" {
+			http.Redirect(w, r, "/admin/settings?err=bad+title", http.StatusFound)
+			return
+		}
+		filename, mime, data, err := readUploadedImage(r, "image", 512*1024)
+		if err != nil {
+			http.Redirect(w, r, "/admin/settings?err=bad+file", http.StatusFound)
+			return
+		}
+		_, err = pool.Exec(r.Context(), `
+INSERT INTO qr_codes(kind, title, description, image_filename, image_mime, image_data)
+VALUES ($1,$2,$3,$4,$5,$6)`, kind, title, desc, filename, mime, data)
+		if err != nil {
+			http.Redirect(w, r, "/admin/settings?err=save+failed", http.StatusFound)
+			return
+		}
+		http.Redirect(w, r, "/admin/settings?ok=qr+added", http.StatusFound)
+	}
+}
+
+func listAllQRCodes(ctx context.Context, pool *pgxpool.Pool) ([]adminQRItem, error) {
+	rows, err := pool.Query(ctx, `
+SELECT id, kind, title, description
+FROM qr_codes
+WHERE active=true
+ORDER BY created_at ASC, id ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []adminQRItem
+	for rows.Next() {
+		var it adminQRItem
+		if err := rows.Scan(&it.ID, &it.Kind, &it.Title, &it.Description); err != nil {
+			return nil, err
+		}
+		if it.Kind == "author" {
+			it.KindLabel = "Автор"
+		} else {
+			it.KindLabel = "Партнёр"
+		}
+		out = append(out, it)
+	}
+	return out, rows.Err()
+}
+
+func readUploadedImage(r *http.Request, field string, maxBytes int64) (filename, mime string, data []byte, err error) {
+	file, header, err := r.FormFile(field)
+	if err != nil {
+		return "", "", nil, err
+	}
+	defer file.Close()
+	if maxBytes <= 0 {
+		maxBytes = 512 * 1024
+	}
+	limited := io.LimitReader(file, maxBytes+1)
+	b, err := io.ReadAll(limited)
+	if err != nil {
+		return "", "", nil, err
+	}
+	if int64(len(b)) > maxBytes {
+		return "", "", nil, fmt.Errorf("file too large")
+	}
+	mime = header.Header.Get("Content-Type")
+	if mime == "" {
+		mime = "image/png"
+	}
+	filename = header.Filename
+	return filename, mime, b, nil
 }
 

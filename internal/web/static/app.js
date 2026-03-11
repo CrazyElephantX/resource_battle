@@ -3,11 +3,8 @@
   const backdrop = document.getElementById("modalBackdrop");
   const closeBtn = document.getElementById("modalClose");
 
-  if (!modal || !backdrop) {
-    return;
-  }
-
   const setOpen = (open) => {
+    if (!modal || !backdrop) return;
     modal.hidden = !open;
     backdrop.hidden = !open;
     if (open) {
@@ -28,6 +25,15 @@
   document.querySelectorAll(".leaderboard-details").forEach((btn) => {
     btn.addEventListener("click", () => {
       setOpen(true);
+    });
+  });
+})();
+
+(() => {
+  document.querySelectorAll(".partner-logo-img").forEach((img) => {
+    img.addEventListener("error", () => {
+      const parent = img.closest(".logo-partner");
+      if (parent) parent.style.display = "none";
     });
   });
 })();
