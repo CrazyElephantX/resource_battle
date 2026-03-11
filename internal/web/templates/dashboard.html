@@ -20,6 +20,7 @@
           <div class="logo-partner">
             <img src="/media/partner-logo" alt="Логотип партнёра" class="partner-logo-img" />
           </div>
+          <button class="btn" id="detailsToggle">Детали</button>
         </div>
       </header>
 
@@ -29,8 +30,8 @@
             <tr>
               <th class="col-place">Место</th>
               <th>Команда</th>
-              <th class="col-points">Баллы</th>
-              <th class="col-actions"></th>
+              <th class="col-points details-col">Баллы</th>
+              <th class="details-col" style="width: 180px;">Выполнено задач</th>
             </tr>
           </thead>
           <tbody>
@@ -40,10 +41,8 @@
               <td>
                 <div class="team-name">{{.TeamName}}</div>
               </td>
-              <td class="mono">{{.Points}}</td>
-              <td class="right">
-                <button class="btn leaderboard-details">Детали</button>
-              </td>
+              <td class="mono details-col">{{.Points}}</td>
+              <td class="mono details-col">{{.Tasks}}</td>
             </tr>
             {{end}}
           </tbody>
@@ -54,40 +53,6 @@
         <div class="muted">Обновляется при перезагрузке страницы.</div>
       </footer>
     </main>
-
-    <div class="modal-backdrop" id="modalBackdrop" hidden></div>
-    <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
-      <div class="modal-header">
-        <div>
-          <div class="kicker">Детализация</div>
-          <div class="modal-title" id="modalTitle">Все команды</div>
-        </div>
-        <button class="icon-btn" id="modalClose" aria-label="Закрыть">×</button>
-      </div>
-      <div class="modal-body">
-        <table class="table" aria-label="Детализация по командам">
-          <thead>
-            <tr>
-              <th class="col-place">Место</th>
-              <th>Команда</th>
-              <th style="width: 140px;">Баллы</th>
-              <th style="width: 190px;">Выполнено задач</th>
-            </tr>
-          </thead>
-          <tbody>
-            {{range .Rows}}
-            <tr>
-              <td class="mono">{{.Place}}</td>
-              <td><div class="team-name">{{.TeamName}}</div></td>
-              <td class="mono">{{.Points}}</td>
-              <td class="mono">{{.Tasks}}</td>
-            </tr>
-            {{end}}
-          </tbody>
-        </table>
-        <div class="muted" style="margin-top:8px;">Задачи считаются с учётом повторяемых задач и их количества.</div>
-      </div>
-    </div>
 
     <script src="/static/app.js"></script>
   </body>

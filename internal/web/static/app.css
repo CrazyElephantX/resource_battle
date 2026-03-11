@@ -102,6 +102,14 @@ body {
 .team-name { font-weight: 600; }
 .muted { color: var(--muted); font-size: 13px; }
 
+.details-col {
+  display: none;
+}
+
+body.show-details .details-col {
+  display: table-cell;
+}
+
 .btn {
   appearance: none;
   border: 1px solid var(--border);
