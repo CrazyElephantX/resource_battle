@@ -68,10 +68,49 @@
             Баллы
             <input name="points" type="number" value="0" required style="width: 160px; margin-top: 6px;" class="input" />
           </label>
+          <div style="display:flex; flex-wrap:wrap; gap:10px;">
+            <label class="muted">
+              Программисты
+              <input name="devs" type="number" min="0" max="100" value="0" class="input" style="width: 120px; margin-top:6px;" />
+            </label>
+            <label class="muted">
+              Аналитики
+              <input name="analysts" type="number" min="0" max="100" value="0" class="input" style="width: 120px; margin-top:6px;" />
+            </label>
+            <label class="muted">
+              DevOps
+              <input name="devops" type="number" min="0" max="100" value="0" class="input" style="width: 120px; margin-top:6px;" />
+            </label>
+            <label class="muted">
+              Дизайнеры
+              <input name="designers" type="number" min="0" max="100" value="0" class="input" style="width: 120px; margin-top:6px;" />
+            </label>
+            <label class="muted">
+              Тестировщики
+              <input name="testers" type="number" min="0" max="100" value="0" class="input" style="width: 120px; margin-top:6px;" />
+            </label>
+          </div>
           <div>
             <button class="btn" type="submit">Создать</button>
           </div>
         </form>
+      </section>
+
+      <div style="height: 10px;"></div>
+
+      <section class="card">
+        <div style="padding: 10px 14px;">
+          <div class="kicker">Импорт задач из CSV</div>
+          <form method="post" action="/admin/tasks/import" style="margin-top:8px;">
+            <div class="muted">
+              Файл `data/tasks_seed.csv` уже лежит в проекте. При импорте задачи ищутся по
+              названию и количеству баллов; существующие не дублируются.
+            </div>
+            <div style="margin-top:10px;">
+              <button class="btn" type="submit">Импортировать из CSV</button>
+            </div>
+          </form>
+        </div>
       </section>
 
       <div style="height: 14px;"></div>
@@ -99,6 +138,36 @@
                     <label class="muted">Баллы</label>
                     <input name="points" type="number" value="{{.Points}}" required style="width: 110px;" class="input" />
                     <button class="btn" type="submit">Сохранить</button>
+                  </div>
+                  <div class="muted" style="display:flex; flex-wrap:wrap; gap:10px;">
+                    <span>Ресурсы:</span>
+                    <span>Программисты: <span class="mono">{{.Devs}}</span></span>
+                    <span>Аналитики: <span class="mono">{{.Analysts}}</span></span>
+                    <span>DevOps: <span class="mono">{{.DevOps}}</span></span>
+                    <span>Дизайнеры: <span class="mono">{{.Designers}}</span></span>
+                    <span>Тестировщики: <span class="mono">{{.Testers}}</span></span>
+                  </div>
+                  <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                    <label class="muted">
+                      Программисты
+                      <input name="devs" type="number" min="0" max="100" value="{{.Devs}}" class="input" style="width: 120px; margin-top:6px;" />
+                    </label>
+                    <label class="muted">
+                      Аналитики
+                      <input name="analysts" type="number" min="0" max="100" value="{{.Analysts}}" class="input" style="width: 120px; margin-top:6px;" />
+                    </label>
+                    <label class="muted">
+                      DevOps
+                      <input name="devops" type="number" min="0" max="100" value="{{.DevOps}}" class="input" style="width: 120px; margin-top:6px;" />
+                    </label>
+                    <label class="muted">
+                      Дизайнеры
+                      <input name="designers" type="number" min="0" max="100" value="{{.Designers}}" class="input" style="width: 120px; margin-top:6px;" />
+                    </label>
+                    <label class="muted">
+                      Тестировщики
+                      <input name="testers" type="number" min="0" max="100" value="{{.Testers}}" class="input" style="width: 120px; margin-top:6px;" />
+                    </label>
                   </div>
                 </form>
               </td>

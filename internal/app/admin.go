@@ -2,10 +2,12 @@ package app
 
 import (
 	"context"
+	"encoding/csv"
 	"fmt"
 	"html/template"
 	"io"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,6 +23,11 @@ type adminTask struct {
 	Title       string
 	Description string
 	Points      int
+	Devs        int
+	Analysts    int
+	DevOps      int
+	Designers   int
+	Testers     int
 	Repeatable  bool
 	Active      bool
 	CreatedAt   time.Time
@@ -86,6 +93,7 @@ func mountAdmin(r chi.Router, pool *pgxpool.Pool, tpl *template.Template) {
 	r.Post("/tasks", adminTasksCreate(pool))
 	r.Post("/tasks/{taskID}", adminTasksUpdate(pool))
 	r.Post("/tasks/{taskID}/toggle", adminTasksToggle(pool))
+	r.Post("/tasks/import", adminTasksImport(pool))
 
 	r.Get("/rounds", adminRoundsGet(pool, tpl))
 	r.Post("/rounds", adminRoundsCreate(pool))
@@ -138,11 +146,17 @@ func adminTasksCreate(pool *pgxpool.Pool) http.HandlerFunc {
 		title := strings.TrimSpace(r.FormValue("title"))
 		desc := strings.TrimSpace(r.FormValue("description"))
 		points, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("points")))
-		if title == "" || points < -100000 || points > 100000 {
+		devs, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("devs")))
+		analysts, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("analysts")))
+		devops, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("devops")))
+		designers, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("designers")))
+		testers, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("testers")))
+		if title == "" || points < -100000 || points > 100000 ||
+			!validResource(devs) || !validResource(analysts) || !validResource(devops) || !validResource(designers) || !validResource(testers) {
 			http.Redirect(w, r, "/admin/tasks?err=invalid+task", http.StatusFound)
 			return
 		}
-		if err := createTask(r.Context(), pool, title, desc, points); err != nil {
+		if err := createTask(r.Context(), pool, title, desc, points, devs, analysts, devops, designers, testers); err != nil {
 			http.Redirect(w, r, "/admin/tasks?err=save+failed", http.StatusFound)
 			return
 		}
@@ -164,11 +178,17 @@ func adminTasksUpdate(pool *pgxpool.Pool) http.HandlerFunc {
 		title := strings.TrimSpace(r.FormValue("title"))
 		desc := strings.TrimSpace(r.FormValue("description"))
 		points, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("points")))
-		if title == "" || points < -100000 || points > 100000 {
+		devs, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("devs")))
+		analysts, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("analysts")))
+		devops, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("devops")))
+		designers, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("designers")))
+		testers, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("testers")))
+		if title == "" || points < -100000 || points > 100000 ||
+			!validResource(devs) || !validResource(analysts) || !validResource(devops) || !validResource(designers) || !validResource(testers) {
 			http.Redirect(w, r, "/admin/tasks?err=invalid+task", http.StatusFound)
 			return
 		}
-		if err := updateTask(r.Context(), pool, taskID, title, desc, points); err != nil {
+		if err := updateTask(r.Context(), pool, taskID, title, desc, points, devs, analysts, devops, designers, testers); err != nil {
 			http.Redirect(w, r, "/admin/tasks?err=save+failed", http.StatusFound)
 			return
 		}
@@ -188,6 +208,79 @@ func adminTasksToggle(pool *pgxpool.Pool) http.HandlerFunc {
 			return
 		}
 		http.Redirect(w, r, "/admin/tasks?ok=saved", http.StatusFound)
+	}
+}
+
+func adminTasksImport(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		const path = "data/tasks_seed.csv"
+		f, err := os.Open(path)
+		if err != nil {
+			http.Redirect(w, r, "/admin/tasks?err=csv+not+found", http.StatusFound)
+			return
+		}
+		defer f.Close()
+
+		reader := csv.NewReader(f)
+		reader.TrimLeadingSpace = true
+
+		records, err := reader.ReadAll()
+		if err != nil || len(records) == 0 {
+			http.Redirect(w, r, "/admin/tasks?err=csv+read+error", http.StatusFound)
+			return
+		}
+
+		imported := 0
+		skipped := 0
+		ctx := r.Context()
+
+		// Expect header: title,description,points,devs,analysts,devops,designers,testers,repeatable
+		for i, row := range records {
+			if i == 0 {
+				continue
+			}
+			if len(row) < 9 {
+				skipped++
+				continue
+			}
+			title := strings.TrimSpace(row[0])
+			desc := strings.TrimSpace(row[1])
+			if title == "" {
+				skipped++
+				continue
+			}
+			points, err := strconv.Atoi(strings.TrimSpace(row[2]))
+			if err != nil {
+				skipped++
+				continue
+			}
+			devs, _ := strconv.Atoi(strings.TrimSpace(row[3]))
+			analysts, _ := strconv.Atoi(strings.TrimSpace(row[4]))
+			devops, _ := strconv.Atoi(strings.TrimSpace(row[5]))
+			designers, _ := strconv.Atoi(strings.TrimSpace(row[6]))
+			testers, _ := strconv.Atoi(strings.TrimSpace(row[7]))
+
+			// Check existing by title + points
+			var existingID int64
+			err = pool.QueryRow(ctx, `SELECT id FROM tasks WHERE title=$1 AND points=$2 LIMIT 1`, title, points).Scan(&existingID)
+			if err != nil && err != pgx.ErrNoRows {
+				skipped++
+				continue
+			}
+			if existingID != 0 {
+				skipped++
+				continue
+			}
+
+			if err := createTask(ctx, pool, title, desc, points, devs, analysts, devops, designers, testers); err != nil {
+				skipped++
+				continue
+			}
+			imported++
+		}
+
+		okMsg := fmt.Sprintf("imported:%d,skipped:%d", imported, skipped)
+		http.Redirect(w, r, "/admin/tasks?ok="+urlQueryEscape(okMsg), http.StatusFound)
 	}
 }
 
@@ -334,6 +427,12 @@ func adminRoundDetailPost(pool *pgxpool.Pool) http.HandlerFunc {
 			return
 		}
 
+		// Enforce: each non-repeatable task can be completed only by one team globally.
+		if err := ensureGlobalOneTimeUniqueness(r.Context(), pool, pairs, 0); err != nil {
+			http.Redirect(w, r, fmt.Sprintf("/admin/rounds/%d?err=task+already+used", roundID), http.StatusFound)
+			return
+		}
+
 		// Sort for stable inserts.
 		sort.Slice(pairs, func(i, j int) bool {
 			if pairs[i].teamID == pairs[j].teamID {
@@ -368,6 +467,23 @@ func filterPairsNonRepeatable(ctx context.Context, pool *pgxpool.Pool, pairs []c
 	return out, nil
 }
 
+func ensureGlobalOneTimeUniqueness(ctx context.Context, pool *pgxpool.Pool, pairs []completionPair, selfTeamID int64) error {
+	if len(pairs) == 0 {
+		return nil
+	}
+	// For each pair, ensure there is no completion of this task by another team.
+	for _, p := range pairs {
+		ok, err := canAssignOneTimeTask(ctx, pool, p.taskID, p.teamID)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return fmt.Errorf("task already used by another team")
+		}
+	}
+	return nil
+}
+
 func parseID(s string) (int64, error) {
 	id, err := strconv.ParseInt(strings.TrimSpace(s), 10, 64)
 	if err != nil || id <= 0 {
@@ -397,7 +513,9 @@ func listTeams(ctx context.Context, pool *pgxpool.Pool) ([]adminTeam, error) {
 
 func listTasks(ctx context.Context, pool *pgxpool.Pool) ([]adminTask, error) {
 	rows, err := pool.Query(ctx, `
-SELECT id, title, description, points, repeatable, active, created_at
+SELECT id, title, description, points,
+       devs, analysts, devops, designers, testers,
+       repeatable, active, created_at
 FROM tasks
 ORDER BY active DESC, created_at ASC, id ASC`)
 	if err != nil {
@@ -407,7 +525,9 @@ ORDER BY active DESC, created_at ASC, id ASC`)
 	var out []adminTask
 	for rows.Next() {
 		var t adminTask
-		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Points, &t.Repeatable, &t.Active, &t.CreatedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Points,
+			&t.Devs, &t.Analysts, &t.DevOps, &t.Designers, &t.Testers,
+			&t.Repeatable, &t.Active, &t.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, t)
@@ -417,7 +537,9 @@ ORDER BY active DESC, created_at ASC, id ASC`)
 
 func listTasksByRepeatable(ctx context.Context, pool *pgxpool.Pool, repeatable bool) ([]adminTask, error) {
 	rows, err := pool.Query(ctx, `
-SELECT id, title, description, points, repeatable, active, created_at
+SELECT id, title, description, points,
+       devs, analysts, devops, designers, testers,
+       repeatable, active, created_at
 FROM tasks
 WHERE repeatable = $1
 ORDER BY active DESC, created_at ASC, id ASC`, repeatable)
@@ -428,7 +550,9 @@ ORDER BY active DESC, created_at ASC, id ASC`, repeatable)
 	var out []adminTask
 	for rows.Next() {
 		var t adminTask
-		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Points, &t.Repeatable, &t.Active, &t.CreatedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Points,
+			&t.Devs, &t.Analysts, &t.DevOps, &t.Designers, &t.Testers,
+			&t.Repeatable, &t.Active, &t.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, t)
@@ -438,7 +562,9 @@ ORDER BY active DESC, created_at ASC, id ASC`, repeatable)
 
 func listActiveTasksByRepeatable(ctx context.Context, pool *pgxpool.Pool, repeatable bool) ([]adminTask, error) {
 	rows, err := pool.Query(ctx, `
-SELECT id, title, description, points, repeatable, active, created_at
+SELECT id, title, description, points,
+       devs, analysts, devops, designers, testers,
+       repeatable, active, created_at
 FROM tasks
 WHERE repeatable = $1 AND active = true
 ORDER BY created_at ASC, id ASC`, repeatable)
@@ -449,7 +575,9 @@ ORDER BY created_at ASC, id ASC`, repeatable)
 	var out []adminTask
 	for rows.Next() {
 		var t adminTask
-		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Points, &t.Repeatable, &t.Active, &t.CreatedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Points,
+			&t.Devs, &t.Analysts, &t.DevOps, &t.Designers, &t.Testers,
+			&t.Repeatable, &t.Active, &t.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, t)
@@ -457,18 +585,24 @@ ORDER BY created_at ASC, id ASC`, repeatable)
 	return out, rows.Err()
 }
 
-func createTask(ctx context.Context, pool *pgxpool.Pool, title, description string, points int) error {
+func createTask(ctx context.Context, pool *pgxpool.Pool, title, description string, points int, devs, analysts, devops, designers, testers int) error {
 	_, err := pool.Exec(ctx, `
-INSERT INTO tasks(title, description, points)
-VALUES ($1, $2, $3)`, title, description, points)
+INSERT INTO tasks(title, description, points, devs, analysts, devops, designers, testers)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		title, description, points,
+		clampResource(devs), clampResource(analysts), clampResource(devops), clampResource(designers), clampResource(testers))
 	return err
 }
 
-func updateTask(ctx context.Context, pool *pgxpool.Pool, id int64, title, description string, points int) error {
+func updateTask(ctx context.Context, pool *pgxpool.Pool, id int64, title, description string, points int, devs, analysts, devops, designers, testers int) error {
 	ct, err := pool.Exec(ctx, `
 UPDATE tasks
-SET title=$2, description=$3, points=$4, updated_at=now()
-WHERE id=$1`, id, title, description, points)
+SET title=$2, description=$3, points=$4,
+    devs=$5, analysts=$6, devops=$7, designers=$8, testers=$9,
+    updated_at=now()
+WHERE id=$1`,
+		id, title, description, points,
+		clampResource(devs), clampResource(analysts), clampResource(devops), clampResource(designers), clampResource(testers))
 	if err != nil {
 		return err
 	}
@@ -675,7 +809,7 @@ func adminGameGet(pool *pgxpool.Pool, tpl *template.Template) http.HandlerFunc {
 				http.Error(w, "internal error", http.StatusInternalServerError)
 				return
 			}
-			oneTime, err := listActiveTasksByRepeatable(r.Context(), pool, false)
+			oneTime, err := listAvailableOneTimeTasks(r.Context(), pool)
 			if err != nil {
 				http.Error(w, "internal error", http.StatusInternalServerError)
 				return
@@ -720,6 +854,13 @@ func adminGameComplete(pool *pgxpool.Pool) http.HandlerFunc {
 		}
 		if rep {
 			http.Redirect(w, r, fmt.Sprintf("/admin/game?team=%d&err=task+is+repeatable", teamID), http.StatusFound)
+			return
+		}
+		if ok, err := canAssignOneTimeTask(r.Context(), pool, taskID, teamID); err != nil {
+			http.Redirect(w, r, fmt.Sprintf("/admin/game?team=%d&err=save+failed", teamID), http.StatusFound)
+			return
+		} else if !ok {
+			http.Redirect(w, r, fmt.Sprintf("/admin/game?team=%d&err=task+already+used", teamID), http.StatusFound)
 			return
 		}
 		if err := setOneTimeCompletion(r.Context(), pool, teamID, taskID, roundID); err != nil {
@@ -820,6 +961,28 @@ func isTaskRepeatable(ctx context.Context, pool *pgxpool.Pool, taskID int64) (bo
 		return false, err
 	}
 	return rep, nil
+}
+
+func canAssignOneTimeTask(ctx context.Context, pool *pgxpool.Pool, taskID, teamID int64) (bool, error) {
+	rep, err := isTaskRepeatable(ctx, pool, taskID)
+	if err != nil {
+		return false, err
+	}
+	if rep {
+		return true, nil
+	}
+	var exists bool
+	err = pool.QueryRow(ctx, `
+SELECT EXISTS(
+  SELECT 1
+  FROM completions c
+  JOIN tasks t ON t.id = c.task_id
+  WHERE c.task_id = $1 AND t.repeatable = false AND c.team_id <> $2
+)`, taskID, teamID).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return !exists, nil
 }
 
 func setOneTimeCompletion(ctx context.Context, pool *pgxpool.Pool, teamID, taskID, roundID int64) error {
@@ -1017,5 +1180,54 @@ func readUploadedImage(r *http.Request, field string, maxBytes int64) (filename,
 	}
 	filename = header.Filename
 	return filename, mime, b, nil
+}
+
+func validResource(x int) bool {
+	return x >= 0 && x <= 100
+}
+
+func clampResource(x int) int {
+	if x < 0 {
+		return 0
+	}
+	if x > 100 {
+		return 100
+	}
+	return x
+}
+
+func urlQueryEscape(s string) string {
+	// Minimal escaping for use in ok=... messages; replace spaces with +.
+	return strings.ReplaceAll(s, " ", "+")
+}
+
+func listAvailableOneTimeTasks(ctx context.Context, pool *pgxpool.Pool) ([]adminTask, error) {
+	rows, err := pool.Query(ctx, `
+SELECT id, title, description, points,
+       devs, analysts, devops, designers, testers,
+       repeatable, active, created_at
+FROM tasks t
+WHERE repeatable = false
+  AND active = true
+  AND NOT EXISTS (
+    SELECT 1 FROM completions c
+    WHERE c.task_id = t.id
+  )
+ORDER BY created_at ASC, id ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []adminTask
+	for rows.Next() {
+		var t adminTask
+		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Points,
+			&t.Devs, &t.Analysts, &t.DevOps, &t.Designers, &t.Testers,
+			&t.Repeatable, &t.Active, &t.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
 }
 
