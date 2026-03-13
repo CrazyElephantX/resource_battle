@@ -35,6 +35,22 @@ body {
   margin-bottom: 18px;
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.logo-main img,
+.logo-partner img {
+  display: block;
+  max-height: 36px;
+}
+
+.logo-partner {
+  opacity: 0.9;
+}
+
 .kicker {
   font-size: 12px;
   letter-spacing: 0.12em;
@@ -85,6 +101,14 @@ body {
 .mono { font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 .team-name { font-weight: 600; }
 .muted { color: var(--muted); font-size: 13px; }
+
+.details-col {
+  display: none;
+}
+
+body.show-details .details-col {
+  display: table-cell;
+}
 
 .btn {
   appearance: none;
@@ -190,5 +214,24 @@ body {
 @media (max-width: 560px) {
   .stats { grid-template-columns: 1fr; }
   .col-actions { width: 104px; }
+}
+
+.qr-grid {
+  padding: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.qr-item {
+  text-align: center;
+  padding: 8px;
+}
+
+.qr-img {
+  max-width: 160px;
+  max-height: 160px;
+  width: auto;
+  height: auto;
 }
 

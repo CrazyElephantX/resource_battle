@@ -16,6 +16,7 @@ USER appuser
 
 WORKDIR /app
 COPY --from=build /out/server ./server
+COPY --from=build /src/data ./data
 
 EXPOSE 8080
 ENTRYPOINT ["./server"]

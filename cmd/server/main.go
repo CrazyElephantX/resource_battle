@@ -32,6 +32,14 @@ func main() {
 		log.Fatalf("migrate: %v", err)
 	}
 
+	// Загрузка начальных задач, если таблица пуста
+	imported, err := app.SeedTasksIfEmpty(ctx, pool)
+	if err != nil {
+		log.Printf("WARNING: seed tasks: %v", err)
+	} else if imported > 0 {
+		log.Printf("seed tasks: imported %d tasks", imported)
+	}
+
 	srv := &http.Server{
 		Addr:              cfg.Addr(),
 		Handler:           app.New(pool),
@@ -50,4 +58,3 @@ func main() {
 	defer cancel()
 	_ = srv.Shutdown(shutdownCtx)
 }
-

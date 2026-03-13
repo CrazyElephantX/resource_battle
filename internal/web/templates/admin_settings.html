@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Админка — Настройки</title>
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <div>
+          <div class="kicker">Админка</div>
+          <h1 class="title">Настройки</h1>
+        </div>
+        <div class="header-right">
+          <div class="logo-main">
+            <img src="/static/main-logo.png" alt="Логотип" />
+          </div>
+          <div class="logo-partner">
+            <img src="/media/partner-logo" alt="Логотип партнёра" class="partner-logo-img" />
+          </div>
+          <nav class="muted">
+            <a href="/" class="link">Дашборд</a>
+            &nbsp;·&nbsp;
+            <a href="/qr" class="link">QR‑коды</a>
+            &nbsp;·&nbsp;
+            <a href="/admin/tasks" class="link">Задачи</a>
+            &nbsp;·&nbsp;
+            <a href="/admin/rounds" class="link">Раунды</a>
+            &nbsp;·&nbsp;
+            <a href="/admin/game" class="link">Ход игры</a>
+          </nav>
+        </div>
+      </header>
+
+      {{if .FlashErr}}
+      <section class="card" style="border-color: rgba(248,113,113,0.35);">
+        <div style="padding: 12px 14px;">
+          <div class="muted">Ошибка: {{.FlashErr}}</div>
+        </div>
+      </section>
+      <div style="height: 12px;"></div>
+      {{end}}
+      {{if .FlashOK}}
+      <section class="card" style="border-color: rgba(52,211,153,0.35);">
+        <div style="padding: 12px 14px;">
+          <div class="muted">ОК: {{.FlashOK}}</div>
+        </div>
+      </section>
+      <div style="height: 12px;"></div>
+      {{end}}
+
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+          <div class="kicker">Логотип партнёра</div>
+        </div>
+        <form method="post" action="/admin/settings/logo" enctype="multipart/form-data" style="padding: 14px; display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
+          <label class="muted">
+            Файл (PNG/JPEG, до 512 КБ)
+            <input type="file" name="logo" accept="image/*" required class="input" style="margin-top:6px; padding:6px;" />
+          </label>
+          <button class="btn" type="submit">Загрузить</button>
+        </form>
+      </section>
+
+      <div style="height: 16px;"></div>
+
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+          <div class="kicker">QR‑коды</div>
+        </div>
+        <form method="post" action="/admin/settings/qr" enctype="multipart/form-data" style="padding: 14px; display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
+          <label class="muted">
+            Тип
+            <select name="kind" class="input" style="margin-top:6px; min-width: 160px;">
+              <option value="author">Автор</option>
+              <option value="partner">Партнёр</option>
+            </select>
+          </label>
+          <label class="muted" style="flex:1; min-width: 200px;">
+            Заголовок
+            <input name="title" class="input" style="margin-top:6px; width:100%;" required />
+          </label>
+          <label class="muted" style="flex:1; min-width: 200px;">
+            Описание (опционально)
+            <input name="description" class="input" style="margin-top:6px; width:100%;" />
+          </label>
+          <label class="muted">
+            Файл QR (до 512 КБ)
+            <input type="file" name="image" accept="image/*" required class="input" style="margin-top:6px; padding:6px;" />
+          </label>
+          <button class="btn" type="submit">Добавить</button>
+        </form>
+
+        {{if .QRCodes}}
+        <div style="padding: 0 14px 14px;">
+          <div class="qr-grid">
+            {{range .QRCodes}}
+            <div class="qr-item">
+              <img src="/media/qr/{{.ID}}" alt="{{.Title}}" class="qr-img" />
+              <div class="team-name" style="margin-top:8px;">{{.Title}}</div>
+              <div class="muted" style="margin-top:4px;">{{.KindLabel}}</div>
+              {{if .Description}}<div class="muted" style="margin-top:4px;">{{.Description}}</div>{{end}}
+            </div>
+            {{end}}
+          </div>
+        </div>
+        {{end}}
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
+
