@@ -25,28 +25,50 @@
       </header>
 
       <section class="card">
-        <table class="table" aria-label="Лидерборд">
-          <thead>
-            <tr>
-              <th class="col-place">Место</th>
-              <th>Команда</th>
-              <th class="col-points details-col">Баллы</th>
-              <th class="details-col" style="width: 180px;">Выполнено задач</th>
-            </tr>
-          </thead>
-          <tbody>
-            {{range .Rows}}
-            <tr>
-              <td class="mono">{{.Place}}</td>
-              <td>
-                <div class="team-name">{{.TeamName}}</div>
-              </td>
-              <td class="mono details-col">{{.Points}}</td>
-              <td class="mono details-col">{{.Tasks}}</td>
-            </tr>
+        <div class="leaderboard-with-qr">
+          <div class="qr-sidebar left">
+            {{range .QRCodesLeft}}
+            <div class="qr-item">
+              <img src="/media/qr/{{.ID}}" alt="{{.Title}}" class="qr-img" />
+              <div class="team-name" style="margin-top:8px;">{{.Title}}</div>
+              {{if .Description}}<div class="muted" style="margin-top:4px;">{{.Description}}</div>{{end}}
+            </div>
             {{end}}
-          </tbody>
-        </table>
+          </div>
+          <div class="leaderboard-table">
+            <table class="table" aria-label="Лидерборд">
+              <thead>
+                <tr>
+                  <th class="col-place">Место</th>
+                  <th>Команда</th>
+                  <th class="col-points details-col">Баллы</th>
+                  <th class="details-col" style="width: 180px;">Выполнено задач</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{range .Rows}}
+                <tr>
+                  <td class="mono">{{.Place}}</td>
+                  <td>
+                    <div class="team-name">{{.TeamName}}</div>
+                  </td>
+                  <td class="mono details-col">{{.Points}}</td>
+                  <td class="mono details-col">{{.Tasks}}</td>
+                </tr>
+                {{end}}
+              </tbody>
+            </table>
+          </div>
+          <div class="qr-sidebar right">
+            {{range .QRCodesRight}}
+            <div class="qr-item">
+              <img src="/media/qr/{{.ID}}" alt="{{.Title}}" class="qr-img" />
+              <div class="team-name" style="margin-top:8px;">{{.Title}}</div>
+              {{if .Description}}<div class="muted" style="margin-top:4px;">{{.Description}}</div>{{end}}
+            </div>
+            {{end}}
+          </div>
+        </div>
       </section>
 
       <footer class="footer">

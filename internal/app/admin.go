@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"sort"
@@ -30,6 +31,7 @@ type adminTask struct {
 	Testers     int
 	Repeatable  bool
 	Active      bool
+	TeamID      *int64
 	CreatedAt   time.Time
 }
 
@@ -48,8 +50,9 @@ type adminTeam struct {
 }
 
 type adminTasksPageData struct {
-	Tasks   []adminTask
-	FlashOK string
+	Tasks    []adminTask
+	Teams    []adminTeam
+	FlashOK  string
 	FlashErr string
 }
 
@@ -60,12 +63,12 @@ type adminRoundsPageData struct {
 }
 
 type adminRoundDetailData struct {
-	Round      adminRound
-	Teams      []adminTeam
-	Tasks      []adminTask
-	Checked    map[int64]map[int64]bool // teamID -> taskID -> bool
-	FlashOK    string
-	FlashErr   string
+	Round    adminRound
+	Teams    []adminTeam
+	Tasks    []adminTask
+	Checked  map[int64]map[int64]bool // teamID -> taskID -> bool
+	FlashOK  string
+	FlashErr string
 }
 
 type completionPair struct{ teamID, taskID int64 }
@@ -76,11 +79,12 @@ type adminQRItem struct {
 	KindLabel   string
 	Title       string
 	Description string
+	ShowOnHome  bool
 }
 
 type adminSettingsPageData struct {
-	QRCodes []adminQRItem
-	FlashOK string
+	QRCodes  []adminQRItem
+	FlashOK  string
 	FlashErr string
 }
 
@@ -111,6 +115,11 @@ func mountAdmin(r chi.Router, pool *pgxpool.Pool, tpl *template.Template) {
 	r.Get("/settings", adminSettingsGet(pool, tpl))
 	r.Post("/settings/logo", adminSettingsLogo(pool))
 	r.Post("/settings/qr", adminSettingsQR(pool))
+	r.Post("/settings/qr/{id}/toggle-show", adminSettingsQRToggleShow(pool))
+	r.Post("/settings/qr/{id}/delete", adminSettingsQRDelete(pool))
+	r.Get("/settings/qr/{id}/edit", adminSettingsQREditGet(pool, tpl))
+	r.Post("/settings/qr/{id}/edit", adminSettingsQREditPost(pool))
+	r.Post("/settings/reset", adminResetProgress(pool))
 }
 
 func renderAdmin(tpl *template.Template, w http.ResponseWriter, name string, data any) {
@@ -132,8 +141,13 @@ func adminTasksGet(pool *pgxpool.Pool, tpl *template.Template) http.HandlerFunc 
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
+		teams, err := listTeams(r.Context(), pool)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 		ok, e := flashFromQuery(r)
-		renderAdmin(tpl, w, "admin_tasks.html", adminTasksPageData{Tasks: tasks, FlashOK: ok, FlashErr: e})
+		renderAdmin(tpl, w, "admin_tasks.html", adminTasksPageData{Tasks: tasks, Teams: teams, FlashOK: ok, FlashErr: e})
 	}
 }
 
@@ -151,12 +165,22 @@ func adminTasksCreate(pool *pgxpool.Pool) http.HandlerFunc {
 		devops, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("devops")))
 		designers, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("designers")))
 		testers, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("testers")))
+		repeatable := r.FormValue("repeatable") != ""
+		teamIDStr := strings.TrimSpace(r.FormValue("team_id"))
+		var teamID *int64
+		if teamIDStr != "" && teamIDStr != "0" {
+			if id, err := strconv.ParseInt(teamIDStr, 10, 64); err == nil && id > 0 {
+				teamID = &id
+			}
+		}
+		log.Printf("[adminTasksCreate] title=%q, teamIDStr=%q, teamID=%v", title, teamIDStr, teamID)
 		if title == "" || points < -100000 || points > 100000 ||
 			!validResource(devs) || !validResource(analysts) || !validResource(devops) || !validResource(designers) || !validResource(testers) {
 			http.Redirect(w, r, "/admin/tasks?err=invalid+task", http.StatusFound)
 			return
 		}
-		if err := createTask(r.Context(), pool, title, desc, points, devs, analysts, devops, designers, testers); err != nil {
+		if err := createTask(r.Context(), pool, title, desc, points, devs, analysts, devops, designers, testers, repeatable, teamID); err != nil {
+			log.Printf("[adminTasksCreate] createTask error: %v", err)
 			http.Redirect(w, r, "/admin/tasks?err=save+failed", http.StatusFound)
 			return
 		}
@@ -183,12 +207,22 @@ func adminTasksUpdate(pool *pgxpool.Pool) http.HandlerFunc {
 		devops, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("devops")))
 		designers, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("designers")))
 		testers, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("testers")))
+		repeatable := r.FormValue("repeatable") != ""
+		teamIDStr := strings.TrimSpace(r.FormValue("team_id"))
+		var teamID *int64
+		if teamIDStr != "" && teamIDStr != "0" {
+			if id, err := strconv.ParseInt(teamIDStr, 10, 64); err == nil && id > 0 {
+				teamID = &id
+			}
+		}
+		log.Printf("[adminTasksUpdate] taskID=%d, title=%q, teamIDStr=%q, teamID=%v", taskID, title, teamIDStr, teamID)
 		if title == "" || points < -100000 || points > 100000 ||
 			!validResource(devs) || !validResource(analysts) || !validResource(devops) || !validResource(designers) || !validResource(testers) {
 			http.Redirect(w, r, "/admin/tasks?err=invalid+task", http.StatusFound)
 			return
 		}
-		if err := updateTask(r.Context(), pool, taskID, title, desc, points, devs, analysts, devops, designers, testers); err != nil {
+		if err := updateTask(r.Context(), pool, taskID, title, desc, points, devs, analysts, devops, designers, testers, repeatable, teamID); err != nil {
+			log.Printf("[adminTasksUpdate] updateTask error: %v", err)
 			http.Redirect(w, r, "/admin/tasks?err=save+failed", http.StatusFound)
 			return
 		}
@@ -259,6 +293,8 @@ func adminTasksImport(pool *pgxpool.Pool) http.HandlerFunc {
 			devops, _ := strconv.Atoi(strings.TrimSpace(row[5]))
 			designers, _ := strconv.Atoi(strings.TrimSpace(row[6]))
 			testers, _ := strconv.Atoi(strings.TrimSpace(row[7]))
+			repeatableStr := strings.TrimSpace(row[8])
+			repeatable := repeatableStr == "true" || repeatableStr == "1"
 
 			// Check existing by title + points
 			var existingID int64
@@ -272,7 +308,7 @@ func adminTasksImport(pool *pgxpool.Pool) http.HandlerFunc {
 				continue
 			}
 
-			if err := createTask(ctx, pool, title, desc, points, devs, analysts, devops, designers, testers); err != nil {
+			if err := createTask(ctx, pool, title, desc, points, devs, analysts, devops, designers, testers, repeatable, nil); err != nil {
 				skipped++
 				continue
 			}
@@ -515,7 +551,7 @@ func listTasks(ctx context.Context, pool *pgxpool.Pool) ([]adminTask, error) {
 	rows, err := pool.Query(ctx, `
 SELECT id, title, description, points,
        devs, analysts, devops, designers, testers,
-       repeatable, active, created_at
+       repeatable, active, team_id, created_at
 FROM tasks
 ORDER BY active DESC, created_at ASC, id ASC`)
 	if err != nil {
@@ -527,7 +563,7 @@ ORDER BY active DESC, created_at ASC, id ASC`)
 		var t adminTask
 		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Points,
 			&t.Devs, &t.Analysts, &t.DevOps, &t.Designers, &t.Testers,
-			&t.Repeatable, &t.Active, &t.CreatedAt); err != nil {
+			&t.Repeatable, &t.Active, &t.TeamID, &t.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, t)
@@ -539,7 +575,7 @@ func listTasksByRepeatable(ctx context.Context, pool *pgxpool.Pool, repeatable b
 	rows, err := pool.Query(ctx, `
 SELECT id, title, description, points,
        devs, analysts, devops, designers, testers,
-       repeatable, active, created_at
+       repeatable, active, team_id, created_at
 FROM tasks
 WHERE repeatable = $1
 ORDER BY active DESC, created_at ASC, id ASC`, repeatable)
@@ -552,7 +588,7 @@ ORDER BY active DESC, created_at ASC, id ASC`, repeatable)
 		var t adminTask
 		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Points,
 			&t.Devs, &t.Analysts, &t.DevOps, &t.Designers, &t.Testers,
-			&t.Repeatable, &t.Active, &t.CreatedAt); err != nil {
+			&t.Repeatable, &t.Active, &t.TeamID, &t.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, t)
@@ -564,7 +600,7 @@ func listActiveTasksByRepeatable(ctx context.Context, pool *pgxpool.Pool, repeat
 	rows, err := pool.Query(ctx, `
 SELECT id, title, description, points,
        devs, analysts, devops, designers, testers,
-       repeatable, active, created_at
+       repeatable, active, team_id, created_at
 FROM tasks
 WHERE repeatable = $1 AND active = true
 ORDER BY created_at ASC, id ASC`, repeatable)
@@ -577,7 +613,7 @@ ORDER BY created_at ASC, id ASC`, repeatable)
 		var t adminTask
 		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Points,
 			&t.Devs, &t.Analysts, &t.DevOps, &t.Designers, &t.Testers,
-			&t.Repeatable, &t.Active, &t.CreatedAt); err != nil {
+			&t.Repeatable, &t.Active, &t.TeamID, &t.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, t)
@@ -585,24 +621,27 @@ ORDER BY created_at ASC, id ASC`, repeatable)
 	return out, rows.Err()
 }
 
-func createTask(ctx context.Context, pool *pgxpool.Pool, title, description string, points int, devs, analysts, devops, designers, testers int) error {
+func createTask(ctx context.Context, pool *pgxpool.Pool, title, description string, points int, devs, analysts, devops, designers, testers int, repeatable bool, teamID *int64) error {
 	_, err := pool.Exec(ctx, `
-INSERT INTO tasks(title, description, points, devs, analysts, devops, designers, testers)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+INSERT INTO tasks(title, description, points, devs, analysts, devops, designers, testers, repeatable, team_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
 		title, description, points,
-		clampResource(devs), clampResource(analysts), clampResource(devops), clampResource(designers), clampResource(testers))
+		clampResource(devs), clampResource(analysts), clampResource(devops), clampResource(designers), clampResource(testers),
+		repeatable, teamID)
 	return err
 }
 
-func updateTask(ctx context.Context, pool *pgxpool.Pool, id int64, title, description string, points int, devs, analysts, devops, designers, testers int) error {
+func updateTask(ctx context.Context, pool *pgxpool.Pool, id int64, title, description string, points int, devs, analysts, devops, designers, testers int, repeatable bool, teamID *int64) error {
 	ct, err := pool.Exec(ctx, `
 UPDATE tasks
 SET title=$2, description=$3, points=$4,
     devs=$5, analysts=$6, devops=$7, designers=$8, testers=$9,
+    repeatable=$10, team_id=$11,
     updated_at=now()
 WHERE id=$1`,
 		id, title, description, points,
-		clampResource(devs), clampResource(analysts), clampResource(devops), clampResource(designers), clampResource(testers))
+		clampResource(devs), clampResource(analysts), clampResource(devops), clampResource(designers), clampResource(testers),
+		repeatable, teamID)
 	if err != nil {
 		return err
 	}
@@ -769,14 +808,14 @@ type adminCompletionRow struct {
 }
 
 type adminGamePageData struct {
-	Teams          []adminTeam
-	TeamID         int64
-	Rounds         []adminRound
-	OneTimeTasks   []adminTask
+	Teams           []adminTeam
+	TeamID          int64
+	Rounds          []adminRound
+	OneTimeTasks    []adminTask
 	RepeatableTasks []adminTask
-	Completions    []adminCompletionRow
-	FlashOK        string
-	FlashErr       string
+	Completions     []adminCompletionRow
+	FlashOK         string
+	FlashErr        string
 }
 
 func adminGameGet(pool *pgxpool.Pool, tpl *template.Template) http.HandlerFunc {
@@ -797,24 +836,24 @@ func adminGameGet(pool *pgxpool.Pool, tpl *template.Template) http.HandlerFunc {
 		}
 
 		data := adminGamePageData{
-			Teams:   teams,
-			TeamID:  teamID,
-			FlashOK: ok,
+			Teams:    teams,
+			TeamID:   teamID,
+			FlashOK:  ok,
 			FlashErr: e,
 		}
 
 		if teamID > 0 {
-			rounds, err := listRounds(r.Context(), pool)
+			rounds, err := listActiveRounds(r.Context(), pool)
 			if err != nil {
 				http.Error(w, "internal error", http.StatusInternalServerError)
 				return
 			}
-			oneTime, err := listAvailableOneTimeTasks(r.Context(), pool)
+			oneTime, err := listAvailableOneTimeTasksForTeam(r.Context(), pool, teamID)
 			if err != nil {
 				http.Error(w, "internal error", http.StatusInternalServerError)
 				return
 			}
-			repeatable, err := listActiveTasksByRepeatable(r.Context(), pool, true)
+			repeatable, err := listActiveRepeatableTasksForTeam(r.Context(), pool, teamID)
 			if err != nil {
 				http.Error(w, "internal error", http.StatusInternalServerError)
 				return
@@ -1130,10 +1169,191 @@ VALUES ($1,$2,$3,$4,$5,$6)`, kind, title, desc, filename, mime, data)
 		http.Redirect(w, r, "/admin/settings?ok=qr+added", http.StatusFound)
 	}
 }
+func adminSettingsQRToggleShow(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := parseID(chi.URLParam(r, "id"))
+		if err != nil {
+			http.Redirect(w, r, "/admin/settings?err=bad+id", http.StatusFound)
+			return
+		}
+		ctx := r.Context()
+		_, err = pool.Exec(ctx, `
+UPDATE qr_codes
+SET show_on_home = NOT show_on_home,
+    updated_at = now()
+WHERE id = $1 AND active = true`, id)
+		if err != nil {
+			http.Redirect(w, r, "/admin/settings?err=save+failed", http.StatusFound)
+			return
+		}
+		http.Redirect(w, r, "/admin/settings?ok=toggled", http.StatusFound)
+	}
+}
+
+func adminSettingsQRDelete(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := parseID(chi.URLParam(r, "id"))
+		if err != nil {
+			http.Redirect(w, r, "/admin/settings?err=bad+id", http.StatusFound)
+			return
+		}
+		ctx := r.Context()
+		// Мягкое удаление: устанавливаем active = false
+		_, err = pool.Exec(ctx, `
+UPDATE qr_codes
+SET active = false,
+    updated_at = now()
+WHERE id = $1`, id)
+		if err != nil {
+			http.Redirect(w, r, "/admin/settings?err=delete+failed", http.StatusFound)
+			return
+		}
+		http.Redirect(w, r, "/admin/settings?ok=deleted", http.StatusFound)
+	}
+}
+
+func adminSettingsQREditGet(pool *pgxpool.Pool, tpl *template.Template) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := parseID(chi.URLParam(r, "id"))
+		if err != nil {
+			http.Redirect(w, r, "/admin/settings?err=bad+id", http.StatusFound)
+			return
+		}
+		ctx := r.Context()
+		qr, err := getQRCode(ctx, pool, id)
+		if err != nil {
+			if isNotFound(err) {
+				http.NotFound(w, r)
+				return
+			}
+			http.Redirect(w, r, "/admin/settings?err=not+found", http.StatusFound)
+			return
+		}
+		ok, e := flashFromQuery(r)
+		renderAdmin(tpl, w, "admin_qr_edit.html", struct {
+			QR       adminQRItem
+			FlashOK  string
+			FlashErr string
+		}{
+			QR:       qr,
+			FlashOK:  ok,
+			FlashErr: e,
+		})
+	}
+}
+
+func adminSettingsQREditPost(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := parseID(chi.URLParam(r, "id"))
+		if err != nil {
+			http.Redirect(w, r, "/admin/settings?err=bad+id", http.StatusFound)
+			return
+		}
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			http.Redirect(w, r, "/admin/settings?err=bad+form", http.StatusFound)
+			return
+		}
+		kind := strings.TrimSpace(r.FormValue("kind"))
+		if kind != "author" && kind != "partner" {
+			http.Redirect(w, r, "/admin/settings?err=bad+kind", http.StatusFound)
+			return
+		}
+		title := strings.TrimSpace(r.FormValue("title"))
+		desc := strings.TrimSpace(r.FormValue("description"))
+		if title == "" {
+			http.Redirect(w, r, "/admin/settings?err=bad+title", http.StatusFound)
+			return
+		}
+		showOnHome := r.FormValue("show_on_home") != ""
+		ctx := r.Context()
+
+		// Если загружено новое изображение, обновляем его
+		var filename, mime string
+		var data []byte
+		file, _, err := r.FormFile("image")
+		if err == nil {
+			// есть новое изображение
+			defer file.Close()
+			limited := io.LimitReader(file, 512*1024+1)
+			b, err := io.ReadAll(limited)
+			if err != nil {
+				http.Redirect(w, r, "/admin/settings?err=bad+file", http.StatusFound)
+				return
+			}
+			if int64(len(b)) > 512*1024 {
+				http.Redirect(w, r, "/admin/settings?err=file+too+large", http.StatusFound)
+				return
+			}
+			mime = http.DetectContentType(b)
+			if mime == "" {
+				mime = "image/png"
+			}
+			filename = "uploaded.png"
+			data = b
+		}
+
+		if len(data) > 0 {
+			// обновляем с изображением
+			_, err = pool.Exec(ctx, `
+UPDATE qr_codes
+SET kind=$2, title=$3, description=$4, show_on_home=$5,
+    image_filename=$6, image_mime=$7, image_data=$8,
+    updated_at=now()
+WHERE id=$1 AND active=true`,
+				id, kind, title, desc, showOnHome, filename, mime, data)
+		} else {
+			// обновляем без изображения
+			_, err = pool.Exec(ctx, `
+UPDATE qr_codes
+SET kind=$2, title=$3, description=$4, show_on_home=$5,
+    updated_at=now()
+WHERE id=$1 AND active=true`,
+				id, kind, title, desc, showOnHome)
+		}
+		if err != nil {
+			http.Redirect(w, r, "/admin/settings?err=save+failed", http.StatusFound)
+			return
+		}
+		http.Redirect(w, r, "/admin/settings?ok=qr+updated", http.StatusFound)
+	}
+}
+
+func adminResetProgress(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			http.Redirect(w, r, "/admin/settings?err=bad+form", http.StatusFound)
+			return
+		}
+		// Optional confirmation token could be added, but for simplicity we just execute.
+		ctx := r.Context()
+		tx, err := pool.Begin(ctx)
+		if err != nil {
+			http.Redirect(w, r, "/admin/settings?err=tx+failed", http.StatusFound)
+			return
+		}
+		defer func() { _ = tx.Rollback(ctx) }()
+
+		// 1. Delete all completions
+		if _, err := tx.Exec(ctx, `DELETE FROM completions`); err != nil {
+			http.Redirect(w, r, "/admin/settings?err=delete+completions+failed", http.StatusFound)
+			return
+		}
+		// 2. Reset round timestamps
+		if _, err := tx.Exec(ctx, `UPDATE rounds SET started_at = NULL, ended_at = NULL`); err != nil {
+			http.Redirect(w, r, "/admin/settings?err=reset+rounds+failed", http.StatusFound)
+			return
+		}
+		if err := tx.Commit(ctx); err != nil {
+			http.Redirect(w, r, "/admin/settings?err=commit+failed", http.StatusFound)
+			return
+		}
+		http.Redirect(w, r, "/admin/settings?ok=progress+reset", http.StatusFound)
+	}
+}
 
 func listAllQRCodes(ctx context.Context, pool *pgxpool.Pool) ([]adminQRItem, error) {
 	rows, err := pool.Query(ctx, `
-SELECT id, kind, title, description
+SELECT id, kind, title, description, show_on_home
 FROM qr_codes
 WHERE active=true
 ORDER BY created_at ASC, id ASC`)
@@ -1144,7 +1364,7 @@ ORDER BY created_at ASC, id ASC`)
 	var out []adminQRItem
 	for rows.Next() {
 		var it adminQRItem
-		if err := rows.Scan(&it.ID, &it.Kind, &it.Title, &it.Description); err != nil {
+		if err := rows.Scan(&it.ID, &it.Kind, &it.Title, &it.Description, &it.ShowOnHome); err != nil {
 			return nil, err
 		}
 		if it.Kind == "author" {
@@ -1155,6 +1375,26 @@ ORDER BY created_at ASC, id ASC`)
 		out = append(out, it)
 	}
 	return out, rows.Err()
+}
+
+func getQRCode(ctx context.Context, pool *pgxpool.Pool, id int64) (adminQRItem, error) {
+	var it adminQRItem
+	err := pool.QueryRow(ctx, `
+SELECT id, kind, title, description, show_on_home
+FROM qr_codes
+WHERE id=$1 AND active=true`, id).Scan(&it.ID, &it.Kind, &it.Title, &it.Description, &it.ShowOnHome)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return adminQRItem{}, errNotFound("qr code")
+		}
+		return adminQRItem{}, err
+	}
+	if it.Kind == "author" {
+		it.KindLabel = "Автор"
+	} else {
+		it.KindLabel = "Партнёр"
+	}
+	return it, nil
 }
 
 func readUploadedImage(r *http.Request, field string, maxBytes int64) (filename, mime string, data []byte, err error) {
@@ -1205,7 +1445,7 @@ func listAvailableOneTimeTasks(ctx context.Context, pool *pgxpool.Pool) ([]admin
 	rows, err := pool.Query(ctx, `
 SELECT id, title, description, points,
        devs, analysts, devops, designers, testers,
-       repeatable, active, created_at
+       repeatable, active, team_id, created_at
 FROM tasks t
 WHERE repeatable = false
   AND active = true
@@ -1223,7 +1463,7 @@ ORDER BY created_at ASC, id ASC`)
 		var t adminTask
 		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Points,
 			&t.Devs, &t.Analysts, &t.DevOps, &t.Designers, &t.Testers,
-			&t.Repeatable, &t.Active, &t.CreatedAt); err != nil {
+			&t.Repeatable, &t.Active, &t.TeamID, &t.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, t)
@@ -1231,3 +1471,81 @@ ORDER BY created_at ASC, id ASC`)
 	return out, rows.Err()
 }
 
+func listAvailableOneTimeTasksForTeam(ctx context.Context, pool *pgxpool.Pool, teamID int64) ([]adminTask, error) {
+	rows, err := pool.Query(ctx, `
+SELECT id, title, description, points,
+       devs, analysts, devops, designers, testers,
+       repeatable, active, team_id, created_at
+FROM tasks t
+WHERE repeatable = false
+  AND active = true
+  AND (team_id IS NULL OR team_id = $1)
+  AND NOT EXISTS (
+    SELECT 1 FROM completions c
+    WHERE c.task_id = t.id
+  )
+ORDER BY created_at ASC, id ASC`, teamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []adminTask
+	for rows.Next() {
+		var t adminTask
+		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Points,
+			&t.Devs, &t.Analysts, &t.DevOps, &t.Designers, &t.Testers,
+			&t.Repeatable, &t.Active, &t.TeamID, &t.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
+func listActiveRepeatableTasksForTeam(ctx context.Context, pool *pgxpool.Pool, teamID int64) ([]adminTask, error) {
+	rows, err := pool.Query(ctx, `
+SELECT id, title, description, points,
+       devs, analysts, devops, designers, testers,
+       repeatable, active, team_id, created_at
+FROM tasks
+WHERE repeatable = true
+  AND active = true
+  AND (team_id IS NULL OR team_id = $1)
+ORDER BY created_at ASC, id ASC`, teamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []adminTask
+	for rows.Next() {
+		var t adminTask
+		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Points,
+			&t.Devs, &t.Analysts, &t.DevOps, &t.Designers, &t.Testers,
+			&t.Repeatable, &t.Active, &t.TeamID, &t.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
+func listActiveRounds(ctx context.Context, pool *pgxpool.Pool) ([]adminRound, error) {
+	rows, err := pool.Query(ctx, `
+SELECT id, number, name, started_at, ended_at, created_at
+FROM rounds
+WHERE started_at IS NOT NULL AND ended_at IS NULL
+ORDER BY number ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []adminRound
+	for rows.Next() {
+		var rd adminRound
+		if err := rows.Scan(&rd.ID, &rd.Number, &rd.Name, &rd.StartedAt, &rd.EndedAt, &rd.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, rd)
+	}
+	return out, rows.Err()
+}

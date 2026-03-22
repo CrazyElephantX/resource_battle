@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Админка — Редактирование QR‑кода</title>
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <div>
+          <div class="kicker">Админка</div>
+          <h1 class="title">Редактирование QR‑кода</h1>
+        </div>
+        <div class="header-right">
+          <div class="logo-main">
+            <img src="/static/main-logo.png" alt="Логотип" />
+          </div>
+          <div class="logo-partner">
+            <img src="/media/partner-logo" alt="Логотип партнёра" class="partner-logo-img" />
+          </div>
+          <nav class="muted">
+            <a href="/" class="link">Дашборд</a>
+            &nbsp;·&nbsp;
+            <a href="/qr" class="link">QR‑коды</a>
+            &nbsp;·&nbsp;
+            <a href="/admin/tasks" class="link">Задачи</a>
+            &nbsp;·&nbsp;
+            <a href="/admin/rounds" class="link">Спринты</a>
+            &nbsp;·&nbsp;
+            <a href="/admin/game" class="link">Ход игры</a>
+            &nbsp;·&nbsp;
+            <a href="/admin/settings" class="link">Настройки</a>
+          </nav>
+        </div>
+      </header>
+
+      {{if .FlashErr}}
+      <section class="card" style="border-color: rgba(248,113,113,0.35);">
+        <div style="padding: 12px 14px;">
+          <div class="muted">Ошибка: {{.FlashErr}}</div>
+        </div>
+      </section>
+      <div style="height: 12px;"></div>
+      {{end}}
+      {{if .FlashOK}}
+      <section class="card" style="border-color: rgba(52,211,153,0.35);">
+        <div style="padding: 12px 14px;">
+          <div class="muted">ОК: {{.FlashOK}}</div>
+        </div>
+      </section>
+      <div style="height: 12px;"></div>
+      {{end}}
+
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+          <div class="kicker">Редактирование</div>
+        </div>
+        <form method="post" action="/admin/settings/qr/{{.QR.ID}}/edit" enctype="multipart/form-data" style="padding: 14px; display:flex; flex-direction:column; gap:16px;">
+          <div style="display:flex; gap:12px; align-items:start; flex-wrap:wrap;">
+            <label class="muted">
+              Тип
+              <select name="kind" class="input" style="margin-top:6px; min-width: 160px;">
+                <option value="author" {{if eq .QR.Kind "author"}}selected{{end}}>Автор</option>
+                <option value="partner" {{if eq .QR.Kind "partner"}}selected{{end}}>Партнёр</option>
+              </select>
+            </label>
+            <label class="muted" style="flex:1; min-width: 200px;">
+              Заголовок
+              <input name="title" class="input" style="margin-top:6px; width:100%;" value="{{.QR.Title}}" required />
+            </label>
+            <label class="muted" style="flex:1; min-width: 200px;">
+              Описание (опционально)
+              <input name="description" class="input" style="margin-top:6px; width:100%;" value="{{.QR.Description}}" />
+            </label>
+          </div>
+
+          <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+            <label class="muted" style="display:flex; align-items:center; gap:6px;">
+              <input type="checkbox" name="show_on_home" value="1" {{if .QR.ShowOnHome}}checked{{end}} />
+              <span>Показывать на главной</span>
+            </label>
+          </div>
+
+          <div style="display:flex; gap:12px; align-items:start; flex-wrap:wrap;">
+            <div>
+              <div class="muted" style="margin-bottom:6px;">Текущее изображение</div>
+              <img src="/media/qr/{{.QR.ID}}" alt="{{.QR.Title}}" style="max-width: 200px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);" />
+            </div>
+            <label class="muted" style="flex:1; min-width: 200px;">
+              Новое изображение (опционально, до 512 КБ)
+              <input type="file" name="image" accept="image/*" class="input" style="margin-top:6px; padding:6px;" />
+              <div class="muted" style="font-size:0.9em; margin-top:4px;">Оставьте пустым, чтобы сохранить текущее</div>
+            </label>
+          </div>
+
+          <div style="display:flex; gap:12px; align-items:center; margin-top: 12px;">
+            <button class="btn" type="submit">Сохранить</button>
+            <a href="/admin/settings" class="link">Отмена</a>
+          </div>
+        </form>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

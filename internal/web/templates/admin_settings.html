@@ -27,7 +27,7 @@
             &nbsp;·&nbsp;
             <a href="/admin/tasks" class="link">Задачи</a>
             &nbsp;·&nbsp;
-            <a href="/admin/rounds" class="link">Раунды</a>
+            <a href="/admin/rounds" class="link">Спринты</a>
             &nbsp;·&nbsp;
             <a href="/admin/game" class="link">Ход игры</a>
           </nav>
@@ -102,11 +102,43 @@
               <div class="team-name" style="margin-top:8px;">{{.Title}}</div>
               <div class="muted" style="margin-top:4px;">{{.KindLabel}}</div>
               {{if .Description}}<div class="muted" style="margin-top:4px;">{{.Description}}</div>{{end}}
+              <div style="margin-top:8px; display:flex; flex-direction:column; gap:4px;">
+                <form method="post" action="/admin/settings/qr/{{.ID}}/toggle-show" style="display:inline;">
+                  <label style="display:flex; align-items:center; gap:4px; cursor:pointer;">
+                    <input type="checkbox" name="show_on_home" value="1" {{if .ShowOnHome}}checked{{end}} onchange="this.form.submit()" />
+                    <span class="muted" style="font-size:0.9em;">Показывать на главной</span>
+                  </label>
+                </form>
+                <div style="display:flex; gap:4px;">
+                  <a href="/admin/settings/qr/{{.ID}}/edit" class="btn" style="background-color: #3b82f6; border-color: #3b82f6; color: white; padding: 4px 8px; font-size:0.9em; text-decoration:none; text-align:center;">Редактировать</a>
+                  <form method="post" action="/admin/settings/qr/{{.ID}}/delete" onsubmit="return confirm('Удалить этот QR‑код?');" style="display:inline;">
+                    <button type="submit" class="btn" style="background-color: #dc2626; border-color: #dc2626; color: white; padding: 4px 8px; font-size:0.9em;">Удалить</button>
+                  </form>
+                </div>
+              </div>
             </div>
             {{end}}
           </div>
         </div>
         {{end}}
+      </section>
+
+      <div style="height: 16px;"></div>
+
+      <section class="card" style="border-color: rgba(248,113,113,0.5);">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+          <div class="kicker" style="color: #f87171;">Опасная зона</div>
+        </div>
+        <div style="padding: 14px;">
+          <p class="muted" style="margin-bottom: 12px;">
+            Сброс прогресса удалит все выполненные задания (таблица completions) и обнулит временные метки спринтов (started_at, ended_at). Это действие нельзя отменить.
+          </p>
+          <form method="post" action="/admin/settings/reset" onsubmit="return confirm('Вы уверены, что хотите сбросить весь прогресс? Это действие нельзя отменить.');">
+            <button class="btn" type="submit" style="background-color: #dc2626; border-color: #dc2626; color: white;">
+              Сбросить прогресс мероприятия
+            </button>
+          </form>
+        </div>
       </section>
     </main>
     <script src="/static/app.js"></script>

@@ -41,8 +41,21 @@ func New(pool *pgxpool.Pool) http.Handler {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
+		qrCodes, err := listHomeQRCodes(r.Context(), pool)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		// Разделяем QR-коды на левые и правые
+		mid := len(qrCodes) / 2
+		qrLeft := qrCodes[:mid]
+		qrRight := qrCodes[mid:]
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = tpl.ExecuteTemplate(w, "dashboard.html", dashboardPageData{Rows: rows})
+		_ = tpl.ExecuteTemplate(w, "dashboard.html", dashboardPageData{
+			Rows:         rows,
+			QRCodesLeft:  qrLeft,
+			QRCodesRight: qrRight,
+		})
 	})
 
 	r.Route("/admin", func(r chi.Router) {
@@ -53,4 +66,3 @@ func New(pool *pgxpool.Pool) http.Handler {
 
 	return r
 }
-

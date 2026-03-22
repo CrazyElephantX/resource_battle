@@ -27,7 +27,7 @@
             &nbsp;·&nbsp;
             <a href="/admin/game" class="link">Ход игры</a>
             &nbsp;·&nbsp;
-            <a href="/admin/rounds" class="link">Раунды</a>
+            <a href="/admin/rounds" class="link">Спринты</a>
             &nbsp;·&nbsp;
             <a href="/admin/settings" class="link">Настройки</a>
           </nav>
@@ -55,43 +55,64 @@
         <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
           <div class="kicker">Новая задача</div>
         </div>
-        <form method="post" action="/admin/tasks" style="padding: 14px; display: grid; gap: 10px;">
-          <label class="muted">
-            Название
-            <input name="title" required style="width: 100%; margin-top: 6px;" class="input" />
-          </label>
+        <form method="post" action="/admin/tasks" style="padding: 14px; display: grid; gap: 12px;">
+          <!-- Первая строка: название, баллы, повторяемая, кнопка -->
+          <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
+            <label class="muted" style="flex: 1; min-width: 200px;">
+              Название
+              <input name="title" required style="width: 100%; margin-top: 6px;" class="input" />
+            </label>
+            <label class="muted" style="width: 100px;">
+              Баллы
+              <input name="points" type="number" value="0" required style="width: 100%; margin-top: 6px;" class="input" />
+            </label>
+            <label class="muted" style="display: flex; align-items: center; gap: 8px; white-space: nowrap;">
+              <input name="repeatable" type="checkbox" />
+              Повторяемая
+            </label>
+            <div>
+              <button class="btn" type="submit">Создать</button>
+            </div>
+          </div>
+          <!-- Вторая строка: описание -->
           <label class="muted">
             Описание
             <textarea name="description" rows="3" style="width: 100%; margin-top: 6px;" class="input"></textarea>
           </label>
-          <label class="muted">
-            Баллы
-            <input name="points" type="number" value="0" required style="width: 160px; margin-top: 6px;" class="input" />
-          </label>
-          <div style="display:flex; flex-wrap:wrap; gap:10px;">
+          <!-- Третья строка: ресурсы -->
+          <div style="display: flex; flex-wrap: wrap; gap: 10px;">
             <label class="muted">
               Программисты
-              <input name="devs" type="number" min="0" max="100" value="0" class="input" style="width: 120px; margin-top:6px;" />
+              <input name="devs" type="number" min="0" max="100" value="0" class="input" style="width: 100px; margin-top:6px;" />
             </label>
             <label class="muted">
               Аналитики
-              <input name="analysts" type="number" min="0" max="100" value="0" class="input" style="width: 120px; margin-top:6px;" />
+              <input name="analysts" type="number" min="0" max="100" value="0" class="input" style="width: 100px; margin-top:6px;" />
             </label>
             <label class="muted">
               DevOps
-              <input name="devops" type="number" min="0" max="100" value="0" class="input" style="width: 120px; margin-top:6px;" />
+              <input name="devops" type="number" min="0" max="100" value="0" class="input" style="width: 100px; margin-top:6px;" />
             </label>
             <label class="muted">
               Дизайнеры
-              <input name="designers" type="number" min="0" max="100" value="0" class="input" style="width: 120px; margin-top:6px;" />
+              <input name="designers" type="number" min="0" max="100" value="0" class="input" style="width: 100px; margin-top:6px;" />
             </label>
             <label class="muted">
               Тестировщики
-              <input name="testers" type="number" min="0" max="100" value="0" class="input" style="width: 120px; margin-top:6px;" />
+              <input name="testers" type="number" min="0" max="100" value="0" class="input" style="width: 100px; margin-top:6px;" />
             </label>
           </div>
-          <div>
-            <button class="btn" type="submit">Создать</button>
+          <!-- Четвёртая строка: команда -->
+          <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+            <label class="muted">
+              Команда (опционально)
+              <select name="team_id" style="width: 200px; margin-top: 6px;" class="input">
+                <option value="">— Общая задача —</option>
+                {{range .Teams}}
+                <option value="{{.ID}}">{{.Name}}</option>
+                {{end}}
+              </select>
+            </label>
           </div>
         </form>
       </section>
@@ -132,41 +153,64 @@
               <td class="mono">{{.ID}}</td>
               <td>
                 <form method="post" action="/admin/tasks/{{.ID}}" style="display: grid; gap: 8px;">
-                  <input name="title" value="{{.Title}}" required class="input" />
-                  <textarea name="description" rows="2" class="input">{{.Description}}</textarea>
-                  <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
-                    <label class="muted">Баллы</label>
-                    <input name="points" type="number" value="{{.Points}}" required style="width: 110px;" class="input" />
-                    <button class="btn" type="submit">Сохранить</button>
+                  <!-- Первая строка: название, баллы, повторяемая, кнопка -->
+                  <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end;">
+                    <label class="muted" style="flex: 1; min-width: 200px;">
+                      Название
+                      <input name="title" value="{{.Title}}" required class="input" placeholder="Название" style="width: 100%; margin-top: 4px;" />
+                    </label>
+                    <label class="muted" style="width: 80px;">
+                      Баллы
+                      <input name="points" type="number" value="{{.Points}}" required class="input" style="width: 100%; margin-top: 4px;" />
+                    </label>
+                    <label class="muted" style="display: flex; align-items: center; gap: 6px; white-space: nowrap;">
+                      <input name="repeatable" type="checkbox" {{if .Repeatable}}checked{{end}} />
+                      Повторяемая
+                    </label>
+                    <div>
+                      <button class="btn" type="submit" style="flex-shrink: 0;">Сохранить</button>
+                    </div>
                   </div>
-                  <div class="muted" style="display:flex; flex-wrap:wrap; gap:10px;">
-                    <span>Ресурсы:</span>
-                    <span>Программисты: <span class="mono">{{.Devs}}</span></span>
-                    <span>Аналитики: <span class="mono">{{.Analysts}}</span></span>
-                    <span>DevOps: <span class="mono">{{.DevOps}}</span></span>
-                    <span>Дизайнеры: <span class="mono">{{.Designers}}</span></span>
-                    <span>Тестировщики: <span class="mono">{{.Testers}}</span></span>
+                  <!-- Вторая строка: описание -->
+                  <label class="muted">
+                    Описание
+                    <textarea name="description" rows="2" class="input" placeholder="Описание" style="width: 100%; margin-top: 4px;">{{.Description}}</textarea>
+                  </label>
+                  <!-- Третья строка: ресурсы -->
+                  <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                    <label class="muted" style="display: flex; align-items: center; gap: 4px; font-size: 0.85em;">
+                      <span>👨‍💻</span>
+                      <input name="devs" type="number" min="0" max="100" value="{{.Devs}}" class="input" style="width: 60px; padding: 4px;" />
+                    </label>
+                    <label class="muted" style="display: flex; align-items: center; gap: 4px; font-size: 0.85em;">
+                      <span>📊</span>
+                      <input name="analysts" type="number" min="0" max="100" value="{{.Analysts}}" class="input" style="width: 60px; padding: 4px;" />
+                    </label>
+                    <label class="muted" style="display: flex; align-items: center; gap: 4px; font-size: 0.85em;">
+                      <span>🔧</span>
+                      <input name="devops" type="number" min="0" max="100" value="{{.DevOps}}" class="input" style="width: 60px; padding: 4px;" />
+                    </label>
+                    <label class="muted" style="display: flex; align-items: center; gap: 4px; font-size: 0.85em;">
+                      <span>🎨</span>
+                      <input name="designers" type="number" min="0" max="100" value="{{.Designers}}" class="input" style="width: 60px; padding: 4px;" />
+                    </label>
+                    <label class="muted" style="display: flex; align-items: center; gap: 4px; font-size: 0.85em;">
+                      <span>🧪</span>
+                      <input name="testers" type="number" min="0" max="100" value="{{.Testers}}" class="input" style="width: 60px; padding: 4px;" />
+                    </label>
                   </div>
-                  <div style="display:flex; flex-wrap:wrap; gap:10px;">
-                    <label class="muted">
-                      Программисты
-                      <input name="devs" type="number" min="0" max="100" value="{{.Devs}}" class="input" style="width: 120px; margin-top:6px;" />
-                    </label>
-                    <label class="muted">
-                      Аналитики
-                      <input name="analysts" type="number" min="0" max="100" value="{{.Analysts}}" class="input" style="width: 120px; margin-top:6px;" />
-                    </label>
-                    <label class="muted">
-                      DevOps
-                      <input name="devops" type="number" min="0" max="100" value="{{.DevOps}}" class="input" style="width: 120px; margin-top:6px;" />
-                    </label>
-                    <label class="muted">
-                      Дизайнеры
-                      <input name="designers" type="number" min="0" max="100" value="{{.Designers}}" class="input" style="width: 120px; margin-top:6px;" />
-                    </label>
-                    <label class="muted">
-                      Тестировщики
-                      <input name="testers" type="number" min="0" max="100" value="{{.Testers}}" class="input" style="width: 120px; margin-top:6px;" />
+                  <!-- Четвёртая строка: активна, выключена, повторяемая и команда -->
+                  <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 0.85em;">
+                    <span class="muted">Статус: {{if .Active}}активна{{else}}выкл{{end}}</span>
+                    <label class="muted" style="display: flex; align-items: center; gap: 4px;">
+                      <span>Команда:</span>
+                      {{$taskTeamID := .TeamID}}
+                      <select name="team_id" style="width: 140px; padding: 4px;" class="input">
+                        <option value="">— Общая —</option>
+                        {{range $.Teams}}
+                        <option value="{{.ID}}" {{if eq (derefInt64 $taskTeamID) .ID}}selected{{end}}>{{.Name}}</option>
+                        {{end}}
+                      </select>
                     </label>
                   </div>
                 </form>

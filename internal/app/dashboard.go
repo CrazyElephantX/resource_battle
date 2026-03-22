@@ -20,7 +20,9 @@ type dashboardRow struct {
 }
 
 type dashboardPageData struct {
-	Rows []dashboardRow
+	Rows         []dashboardRow
+	QRCodesLeft  []qrCodePublic
+	QRCodesRight []qrCodePublic
 }
 
 func leaderboard(ctx context.Context, pool *pgxpool.Pool) ([]dashboardRow, error) {
@@ -57,6 +59,31 @@ ORDER BY points DESC, t.name ASC`)
 		return nil, fmt.Errorf("iterate leaderboard: %w", err)
 	}
 	return out, nil
+}
+
+func listHomeQRCodes(ctx context.Context, pool *pgxpool.Pool) ([]qrCodePublic, error) {
+	rows, err := pool.Query(ctx, `
+SELECT id, kind, title, description, show_on_home
+FROM qr_codes
+WHERE active=true AND show_on_home=true
+ORDER BY kind ASC, created_at ASC, id ASC`)
+	if err != nil {
+		return nil, fmt.Errorf("query home qr codes: %w", err)
+	}
+	defer rows.Close()
+
+	var codes []qrCodePublic
+	for rows.Next() {
+		var q qrCodePublic
+		if err := rows.Scan(&q.ID, &q.Kind, &q.Title, &q.Description, &q.ShowOnHome); err != nil {
+			return nil, fmt.Errorf("scan qr code: %w", err)
+		}
+		codes = append(codes, q)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate qr codes: %w", err)
+	}
+	return codes, nil
 }
 
 func teamStats(ctx context.Context, pool *pgxpool.Pool, teamID int64) (points int, tasksCompleted int, err error) {
@@ -134,4 +161,3 @@ func handleTeamStats(pool *pgxpool.Pool) http.HandlerFunc {
 		})
 	}
 }
-

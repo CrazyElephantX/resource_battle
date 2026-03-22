@@ -12,6 +12,7 @@ type qrCodePublic struct {
 	Kind        string
 	Title       string
 	Description string
+	ShowOnHome  bool
 }
 
 type qrPageData struct {
@@ -22,7 +23,7 @@ type qrPageData struct {
 func handleQRPage(pool *pgxpool.Pool, tpl *template.Template) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		rows, err := pool.Query(r.Context(), `
-SELECT id, kind, title, description
+SELECT id, kind, title, description, show_on_home
 FROM qr_codes
 WHERE active=true
 ORDER BY kind ASC, created_at ASC, id ASC`)
@@ -35,7 +36,7 @@ ORDER BY kind ASC, created_at ASC, id ASC`)
 		var authors, partners []qrCodePublic
 		for rows.Next() {
 			var q qrCodePublic
-			if err := rows.Scan(&q.ID, &q.Kind, &q.Title, &q.Description); err != nil {
+			if err := rows.Scan(&q.ID, &q.Kind, &q.Title, &q.Description, &q.ShowOnHome); err != nil {
 				http.Error(w, "internal error", http.StatusInternalServerError)
 				return
 			}
@@ -57,4 +58,3 @@ ORDER BY kind ASC, created_at ASC, id ASC`)
 		})
 	}
 }
-

@@ -27,7 +27,7 @@
             &nbsp;·&nbsp;
             <a href="/admin/tasks" class="link">Задачи</a>
             &nbsp;·&nbsp;
-            <a href="/admin/rounds" class="link">Раунды</a>
+            <a href="/admin/rounds" class="link">Спринты</a>
             &nbsp;·&nbsp;
             <a href="/admin/settings" class="link">Настройки</a>
           </nav>
@@ -55,17 +55,21 @@
         <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
           <div class="kicker">Выбор команды</div>
         </div>
-        <form method="get" action="/admin/game" style="padding: 14px; display:flex; gap:10px; flex-wrap: wrap; align-items: end;">
+        <form method="get" action="/admin/game" id="team-select-form" style="padding: 14px; display:flex; gap:10px; flex-wrap: wrap; align-items: center;">
           <label class="muted">
             Команда
-            <select name="team" class="input" style="margin-top:6px; min-width: 240px;">
+            <select name="team" class="input" style="margin-top:6px; min-width: 240px;" onchange="this.form.submit()">
               <option value="">— выбери —</option>
               {{range .Teams}}
                 <option value="{{.ID}}" {{if eq $.TeamID .ID}}selected{{end}}>{{.Name}}</option>
               {{end}}
             </select>
           </label>
-          <button class="btn" type="submit">Открыть</button>
+          {{if gt .TeamID 0}}
+          <div style="font-size: 1.2rem; font-weight: bold; margin-left: 10px;">
+            Выбрана: {{range .Teams}}{{if eq $.TeamID .ID}}{{.Name}}{{end}}{{end}}
+          </div>
+          {{end}}
         </form>
       </section>
 
@@ -97,7 +101,7 @@
           <button class="btn" type="submit">Проставить</button>
         </form>
         <div class="muted" style="padding: 0 14px 14px;">
-          Если задача уже была выполнена, мы просто перенесём её на выбранный раунд.
+          Если задача уже была выполнена, мы просто перенесём её на выбранный спринт.
         </div>
       </section>
 

@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE qr_codes
+ADD COLUMN show_on_home BOOLEAN NOT NULL DEFAULT false;
+
+COMMIT;

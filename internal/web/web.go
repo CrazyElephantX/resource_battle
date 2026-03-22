@@ -27,6 +27,12 @@ func MustTemplates() *template.Template {
 			}
 			return t.Local().Format("2006-01-02 15:04")
 		},
+		"derefInt64": func(p *int64) int64 {
+			if p == nil {
+				return 0
+			}
+			return *p
+		},
 	}
 
 	t, err := template.New("root").Funcs(funcs).ParseFS(FS, "templates/*.html")
@@ -35,4 +41,3 @@ func MustTemplates() *template.Template {
 	}
 	return t
 }
-

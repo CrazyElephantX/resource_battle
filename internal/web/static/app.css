@@ -25,7 +25,7 @@ body {
 .container {
   max-width: 980px;
   margin: 0 auto;
-  padding: 28px 18px 40px;
+  padding: 28px 12px 40px;
 }
 
 .header {
@@ -77,7 +77,7 @@ body {
   border-collapse: collapse;
 }
 .table th, .table td {
-  padding: 14px 14px;
+  padding: 14px 12px;
   border-bottom: 1px solid var(--border);
 }
 .table thead th {
@@ -178,7 +178,7 @@ body.show-details .details-col {
   position: fixed;
   top: 50%;
   left: 50%;
-  width: min(520px, calc(100vw - 28px));
+  width: min(520px, calc(100vw - 20px));
   transform: translate(-50%, -50%);
   background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent 140%), var(--card2);
   border: 1px solid var(--border);
@@ -191,11 +191,11 @@ body.show-details .details-col {
   align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
-  padding: 14px 14px 10px;
+  padding: 14px 12px 10px;
   border-bottom: 1px solid var(--border);
 }
 .modal-title { font-size: 18px; font-weight: 700; margin-top: 4px; }
-.modal-body { padding: 14px; }
+.modal-body { padding: 14px 12px; }
 
 .stats {
   display: grid;
@@ -217,7 +217,7 @@ body.show-details .details-col {
 }
 
 .qr-grid {
-  padding: 14px;
+  padding: 14px 10px;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
@@ -233,5 +233,48 @@ body.show-details .details-col {
   max-height: 160px;
   width: auto;
   height: auto;
+}
+
+.leaderboard-with-qr {
+  display: flex;
+  gap: 20px;
+  padding: 20px 12px;
+}
+
+.qr-sidebar {
+  flex: 0 0 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.qr-sidebar .qr-item {
+  text-align: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.02);
+}
+
+.leaderboard-table {
+  flex: 1;
+  overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+  .leaderboard-with-qr {
+    flex-direction: column;
+  }
+  .qr-sidebar {
+    flex: none;
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 10px;
+  }
+  .qr-sidebar .qr-item {
+    flex: 0 0 auto;
+    width: 180px;
+  }
 }
 
