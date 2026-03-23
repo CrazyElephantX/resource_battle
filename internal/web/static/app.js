@@ -18,3 +18,14 @@
   });
 })();
 
+
+(() => {
+  document.querySelectorAll('.burger').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const wrapper = btn.closest('.nav-wrapper');
+      if (wrapper) {
+        wrapper.classList.toggle('nav-open');
+      }
+    });
+  });
+})();
