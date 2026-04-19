@@ -102,6 +102,7 @@
                     <div class="team-name">{{$task.Title}}</div>
                     {{if $task.Description}}<div class="muted" style="margin-top: 4px;">{{$task.Description}}</div>{{end}}
                     {{if not $task.Active}}<div class="muted" style="margin-top: 4px;">(неактивна)</div>{{end}}
+                    {{if $task.Repeatable}}<div class="muted" style="margin-top:4px;">(повторяемая)</div>{{end}}
                   </td>
                   <td class="mono">{{$task.Points}}</td>
                   {{range $team := $.Teams}}
@@ -110,6 +111,7 @@
                         type="checkbox"
                         name="c_{{$team.ID}}_{{$task.ID}}"
                         {{if checked $.Checked $team.ID $task.ID}}checked{{end}}
+                        {{if $task.Repeatable}}disabled{{end}}
                         style="transform: scale(1.2);"
                       />
                     </td>

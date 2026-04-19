@@ -33,7 +33,7 @@ SELECT
   t.id,
   t.name,
   COALESCE(SUM(tsk.points * c.count), 0) AS points,
-  COALESCE(SUM(c.count), 0) AS tasks_completed
+  COALESCE(SUM(CASE WHEN tsk.repeatable = false THEN c.count ELSE 0 END), 0) AS tasks_completed
 FROM teams t
 LEFT JOIN completions c ON c.team_id = t.id
 LEFT JOIN tasks tsk ON tsk.id = c.task_id
@@ -87,12 +87,12 @@ ORDER BY kind ASC, created_at ASC, id ASC`)
 }
 
 func teamStats(ctx context.Context, pool *pgxpool.Pool, teamID int64) (points int, tasksCompleted int, err error) {
-	// tasksCompleted: total occurrences (sum(count))
-	// points: sum(task.points * count)
+	// tasksCompleted: total occurrences (sum(count)) for non-repeatable tasks only
+	// points: sum(task.points * count) for all tasks
 	row := pool.QueryRow(ctx, `
 SELECT
   COALESCE(SUM(tsk.points * c.count), 0) AS points,
-  COALESCE(SUM(c.count), 0) AS tasks_completed
+  COALESCE(SUM(CASE WHEN tsk.repeatable = false THEN c.count ELSE 0 END), 0) AS tasks_completed
 FROM teams t
 LEFT JOIN completions c ON c.team_id = t.id
 LEFT JOIN tasks tsk ON tsk.id = c.task_id
