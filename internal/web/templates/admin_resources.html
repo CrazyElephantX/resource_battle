@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Админка — Ресурсы</title>
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <div>
+          <div class="kicker">Админка</div>
+          <h1 class="title">Ресурсы</h1>
+        </div>
+        <div class="header-right">
+          <div class="logo-main">
+            <img src="/static/main-logo.png" alt="Логотип" />
+          </div>
+          <div class="logo-partner">
+            <img src="/media/partner-logo" alt="Логотип партнёра" class="partner-logo-img" />
+          </div>
+          {{template "_menu.html"}}
+        </div>
+      </header>
+
+      {{if .FlashErr}}
+      <section class="card" style="border-color: rgba(248,113,113,0.35);">
+        <div style="padding: 12px 14px;">
+          <div class="muted">Ошибка: {{.FlashErr}}</div>
+        </div>
+      </section>
+      <div style="height: 12px;"></div>
+      {{end}}
+      {{if .FlashOK}}
+      <section class="card" style="border-color: rgba(52,211,153,0.35);">
+        <div style="padding: 12px 14px;">
+          <div class="muted">ОК: {{.FlashOK}}</div>
+        </div>
+      </section>
+      <div style="height: 12px;"></div>
+      {{end}}
+
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+          <div class="kicker">Глобальные ресурсы</div>
+          <div class="muted" style="margin-top: 4px;">
+            Укажите доступное количество каждого вида ресурса. Эти значения будут использоваться при распределении ресурсов в спринтах.
+          </div>
+        </div>
+        <form method="post" action="/admin/resources" style="padding: 14px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px;">
+            <label class="muted">
+              Программисты
+              <input type="number" name="devs" value="{{.Resources.Devs}}" min="0" max="1000" class="input" style="margin-top:6px; width:100%;" />
+            </label>
+            <label class="muted">
+              Аналитики
+              <input type="number" name="analysts" value="{{.Resources.Analysts}}" min="0" max="1000" class="input" style="margin-top:6px; width:100%;" />
+            </label>
+            <label class="muted">
+              Тестировщики
+              <input type="number" name="testers" value="{{.Resources.Testers}}" min="0" max="1000" class="input" style="margin-top:6px; width:100%;" />
+            </label>
+            <label class="muted">
+              Дизайнеры
+              <input type="number" name="designers" value="{{.Resources.Designers}}" min="0" max="1000" class="input" style="margin-top:6px; width:100%;" />
+            </label>
+            <label class="muted">
+              DevOps
+              <input type="number" name="devops" value="{{.Resources.DevOps}}" min="0" max="1000" class="input" style="margin-top:6px; width:100%;" />
+            </label>
+            <label class="muted">
+              Техлид
+              <input type="number" name="techlead" value="{{.Resources.TechLead}}" min="0" max="1000" class="input" style="margin-top:6px; width:100%;" />
+            </label>
+          </div>
+          <div style="margin-top: 20px;">
+            <button class="btn" type="submit">Сохранить ресурсы</button>
+          </div>
+        </form>
+      </section>
+
+      <div style="height: 16px;"></div>
+
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+          <div class="kicker">Инструкция</div>
+        </div>
+        <div style="padding: 14px;">
+          <p class="muted">
+            После установки доступных ресурсов, при старте спринта команды смогут запрашивать ресурсы для выполнения задач.
+            Система автоматически распределит ресурсы в соответствии с заявками и покажет, каких ресурсов хватило, а каких не хватило.
+          </p>
+          <p class="muted">
+            Чтобы начать распределение, перейдите в раздел «Спринты», запустите спринт и нажмите кнопку «Старт».
+          </p>
+        </div>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

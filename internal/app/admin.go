@@ -88,6 +88,59 @@ type adminSettingsPageData struct {
 	FlashErr string
 }
 
+type adminGlobalResources struct {
+	Devs      int
+	Analysts  int
+	Testers   int
+	Designers int
+	DevOps    int
+	TechLead  int
+}
+
+type adminResourcesPageData struct {
+	Resources adminGlobalResources
+	FlashOK   string
+	FlashErr  string
+}
+type roundResourceRequest struct {
+	TeamID    int64
+	TeamName  string
+	Devs      int
+	Analysts  int
+	Testers   int
+	Designers int
+	DevOps    int
+	TechLead  int
+}
+
+type roundResourceAllocation struct {
+	TeamID        int64
+	TeamName      string
+	Devs          int
+	Analysts      int
+	Testers       int
+	Designers     int
+	DevOps        int
+	TechLead      int
+	DevsDiff      int // разница (получено - запрошено)
+	AnalystsDiff  int
+	TestersDiff   int
+	DesignersDiff int
+	DevOpsDiff    int
+	TechLeadDiff  int
+}
+
+type adminRoundResourcesPageData struct {
+	Round       adminRound
+	Teams       []adminTeam
+	Requests    []roundResourceRequest
+	RequestsMap map[int64]roundResourceRequest // для быстрого поиска в шаблоне
+	Allocations []roundResourceAllocation
+	Global      adminGlobalResources
+	FlashOK     string
+	FlashErr    string
+}
+
 func mountAdmin(r chi.Router, pool *pgxpool.Pool, tpl *template.Template) {
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/admin/tasks", http.StatusFound)
@@ -120,6 +173,11 @@ func mountAdmin(r chi.Router, pool *pgxpool.Pool, tpl *template.Template) {
 	r.Get("/settings/qr/{id}/edit", adminSettingsQREditGet(pool, tpl))
 	r.Post("/settings/qr/{id}/edit", adminSettingsQREditPost(pool))
 	r.Post("/settings/reset", adminResetProgress(pool))
+
+	r.Get("/resources", adminResourcesGet(pool, tpl))
+	r.Post("/resources", adminResourcesPost(pool))
+	r.Get("/rounds/{roundID}/resources", adminRoundResourcesGet(pool, tpl))
+	r.Post("/rounds/{roundID}/resources", adminRoundResourcesPost(pool))
 }
 
 func renderAdmin(tpl *template.Template, w http.ResponseWriter, name string, data any) {
@@ -363,7 +421,7 @@ func adminRoundStart(pool *pgxpool.Pool) http.HandlerFunc {
 			http.Redirect(w, r, "/admin/rounds?err=save+failed", http.StatusFound)
 			return
 		}
-		http.Redirect(w, r, "/admin/rounds?ok=saved", http.StatusFound)
+		http.Redirect(w, r, fmt.Sprintf("/admin/rounds/%d/resources?ok=sprint+started", roundID), http.StatusFound)
 	}
 }
 
@@ -1548,4 +1606,319 @@ ORDER BY number ASC`)
 		out = append(out, rd)
 	}
 	return out, rows.Err()
+}
+
+// --- Global resources management ---
+
+func getGlobalResources(ctx context.Context, pool *pgxpool.Pool) (adminGlobalResources, error) {
+	var res adminGlobalResources
+	err := pool.QueryRow(ctx, `
+SELECT devs, analysts, testers, designers, devops, techlead
+FROM global_resources
+WHERE id = 1`).Scan(&res.Devs, &res.Analysts, &res.Testers, &res.Designers, &res.DevOps, &res.TechLead)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			// Insert default row if missing
+			_, err = pool.Exec(ctx, `
+INSERT INTO global_resources (id, devs, analysts, testers, designers, devops, techlead)
+VALUES (1, 0, 0, 0, 0, 0, 0)
+ON CONFLICT (id) DO NOTHING`)
+			if err != nil {
+				return adminGlobalResources{}, err
+			}
+			// Retry
+			return getGlobalResources(ctx, pool)
+		}
+		return adminGlobalResources{}, err
+	}
+	return res, nil
+}
+
+func updateGlobalResources(ctx context.Context, pool *pgxpool.Pool, res adminGlobalResources) error {
+	_, err := pool.Exec(ctx, `
+UPDATE global_resources
+SET devs = $1, analysts = $2, testers = $3, designers = $4, devops = $5, techlead = $6, updated_at = now()
+WHERE id = 1`,
+		res.Devs, res.Analysts, res.Testers, res.Designers, res.DevOps, res.TechLead)
+	return err
+}
+
+func adminResourcesGet(pool *pgxpool.Pool, tpl *template.Template) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		res, err := getGlobalResources(r.Context(), pool)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		ok, e := flashFromQuery(r)
+		renderAdmin(tpl, w, "admin_resources.html", adminResourcesPageData{
+			Resources: res,
+			FlashOK:   ok,
+			FlashErr:  e,
+		})
+	}
+}
+
+func adminResourcesPost(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			http.Redirect(w, r, "/admin/resources?err=bad+form", http.StatusFound)
+			return
+		}
+		devs, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("devs")))
+		analysts, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("analysts")))
+		testers, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("testers")))
+		designers, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("designers")))
+		devops, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("devops")))
+		techlead, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("techlead")))
+
+		// Validate
+		if devs < 0 || analysts < 0 || testers < 0 || designers < 0 || devops < 0 || techlead < 0 {
+			http.Redirect(w, r, "/admin/resources?err=negative+value", http.StatusFound)
+			return
+		}
+		// Optionally limit to some max
+		if devs > 1000 || analysts > 1000 || testers > 1000 || designers > 1000 || devops > 1000 || techlead > 1000 {
+			http.Redirect(w, r, "/admin/resources?err=too+large", http.StatusFound)
+			return
+		}
+
+		res := adminGlobalResources{
+			Devs:      devs,
+			Analysts:  analysts,
+			Testers:   testers,
+			Designers: designers,
+			DevOps:    devops,
+			TechLead:  techlead,
+		}
+		if err := updateGlobalResources(r.Context(), pool, res); err != nil {
+			http.Redirect(w, r, "/admin/resources?err=save+failed", http.StatusFound)
+			return
+		}
+		http.Redirect(w, r, "/admin/resources?ok=saved", http.StatusFound)
+	}
+}
+
+// --- Round resources management ---
+
+func getRoundResourceRequests(ctx context.Context, pool *pgxpool.Pool, roundID int64) ([]roundResourceRequest, error) {
+	rows, err := pool.Query(ctx, `
+SELECT r.team_id, t.name, r.devs, r.analysts, r.testers, r.designers, r.devops, r.techlead
+FROM round_resource_requests r
+JOIN teams t ON t.id = r.team_id
+WHERE r.round_id = $1
+ORDER BY t.name`, roundID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []roundResourceRequest
+	for rows.Next() {
+		var req roundResourceRequest
+		if err := rows.Scan(&req.TeamID, &req.TeamName, &req.Devs, &req.Analysts, &req.Testers, &req.Designers, &req.DevOps, &req.TechLead); err != nil {
+			return nil, err
+		}
+		out = append(out, req)
+	}
+	return out, rows.Err()
+}
+
+func saveRoundResourceRequests(ctx context.Context, pool *pgxpool.Pool, roundID int64, requests []roundResourceRequest) error {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	// Удалить старые записи для этого раунда
+	_, err = tx.Exec(ctx, `DELETE FROM round_resource_requests WHERE round_id = $1`, roundID)
+	if err != nil {
+		return err
+	}
+
+	// Вставить новые
+	for _, req := range requests {
+		_, err = tx.Exec(ctx, `
+INSERT INTO round_resource_requests (round_id, team_id, devs, analysts, testers, designers, devops, techlead)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+			roundID, req.TeamID, req.Devs, req.Analysts, req.Testers, req.Designers, req.DevOps, req.TechLead)
+		if err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+// allocateResources распределяет глобальные ресурсы между командами пропорционально запросам.
+// Возвращает распределение (сколько получила каждая команда) и оставшиеся глобальные ресурсы.
+func allocateResources(global adminGlobalResources, requests []roundResourceRequest) ([]roundResourceAllocation, adminGlobalResources) {
+	if len(requests) == 0 {
+		return nil, global
+	}
+
+	// Суммируем запросы по каждому типу
+	totalRequested := adminGlobalResources{}
+	for _, req := range requests {
+		totalRequested.Devs += req.Devs
+		totalRequested.Analysts += req.Analysts
+		totalRequested.Testers += req.Testers
+		totalRequested.Designers += req.Designers
+		totalRequested.DevOps += req.DevOps
+		totalRequested.TechLead += req.TechLead
+	}
+
+	// Если запросов больше, чем доступно, распределяем пропорционально.
+	allocations := make([]roundResourceAllocation, len(requests))
+	for i, req := range requests {
+		alloc := roundResourceAllocation{
+			TeamID:   req.TeamID,
+			TeamName: req.TeamName,
+		}
+		// Распределяем каждый тип ресурсов
+		alloc.Devs = allocateSingle(global.Devs, totalRequested.Devs, req.Devs)
+		alloc.Analysts = allocateSingle(global.Analysts, totalRequested.Analysts, req.Analysts)
+		alloc.Testers = allocateSingle(global.Testers, totalRequested.Testers, req.Testers)
+		alloc.Designers = allocateSingle(global.Designers, totalRequested.Designers, req.Designers)
+		alloc.DevOps = allocateSingle(global.DevOps, totalRequested.DevOps, req.DevOps)
+		alloc.TechLead = allocateSingle(global.TechLead, totalRequested.TechLead, req.TechLead)
+
+		// Вычисляем разницу
+		alloc.DevsDiff = alloc.Devs - req.Devs
+		alloc.AnalystsDiff = alloc.Analysts - req.Analysts
+		alloc.TestersDiff = alloc.Testers - req.Testers
+		alloc.DesignersDiff = alloc.Designers - req.Designers
+		alloc.DevOpsDiff = alloc.DevOps - req.DevOps
+		alloc.TechLeadDiff = alloc.TechLead - req.TechLead
+
+		allocations[i] = alloc
+	}
+
+	// Вычитаем распределённые ресурсы из глобальных
+	remaining := global
+	for _, alloc := range allocations {
+		remaining.Devs -= alloc.Devs
+		remaining.Analysts -= alloc.Analysts
+		remaining.Testers -= alloc.Testers
+		remaining.Designers -= alloc.Designers
+		remaining.DevOps -= alloc.DevOps
+		remaining.TechLead -= alloc.TechLead
+	}
+	return allocations, remaining
+}
+
+// allocateSingle возвращает количество ресурса, которое можно выделить команде.
+// Если доступного ресурса достаточно для всех запросов, возвращаем запрошенное количество.
+// Иначе распределяем пропорционально (целые числа, округление вниз).
+func allocateSingle(available, totalRequested, requested int) int {
+	if available >= totalRequested {
+		return requested
+	}
+	if totalRequested == 0 {
+		return 0
+	}
+	// пропорция: requested / totalRequested * available
+	alloc := (requested * available) / totalRequested
+	// гарантируем, что не превысим доступное (из-за округления может быть на 1 меньше)
+	if alloc > available {
+		alloc = available
+	}
+	return alloc
+}
+
+func adminRoundResourcesGet(pool *pgxpool.Pool, tpl *template.Template) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		roundID, err := parseID(chi.URLParam(r, "roundID"))
+		if err != nil {
+			http.Error(w, "bad round id", http.StatusBadRequest)
+			return
+		}
+		round, err := getRound(r.Context(), pool, roundID)
+		if err != nil {
+			if isNotFound(err) {
+				http.NotFound(w, r)
+				return
+			}
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		teams, err := listTeams(r.Context(), pool)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		requests, err := getRoundResourceRequests(r.Context(), pool, roundID)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		global, err := getGlobalResources(r.Context(), pool)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		allocations, remaining := allocateResources(global, requests)
+		ok, e := flashFromQuery(r)
+		log.Printf("[adminRoundResourcesGet] roundID=%d, teams=%d, requests=%d, global=%+v, allocations=%d", roundID, len(teams), len(requests), global, len(allocations))
+		// Создаём map для быстрого поиска запроса по teamID
+		requestsMap := make(map[int64]roundResourceRequest)
+		for _, req := range requests {
+			requestsMap[req.TeamID] = req
+		}
+		renderAdmin(tpl, w, "admin_round_resources.html", adminRoundResourcesPageData{
+			Round:       round,
+			Teams:       teams,
+			Requests:    requests,
+			RequestsMap: requestsMap,
+			Allocations: allocations,
+			Global:      remaining,
+			FlashOK:     ok,
+			FlashErr:    e,
+		})
+	}
+}
+
+func adminRoundResourcesPost(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		roundID, err := parseID(chi.URLParam(r, "roundID"))
+		if err != nil {
+			http.Redirect(w, r, fmt.Sprintf("/admin/rounds/%d/resources?err=bad+round+id", roundID), http.StatusFound)
+			return
+		}
+		if err := r.ParseForm(); err != nil {
+			http.Redirect(w, r, fmt.Sprintf("/admin/rounds/%d/resources?err=bad+form", roundID), http.StatusFound)
+			return
+		}
+		// Получаем список команд
+		teams, err := listTeams(r.Context(), pool)
+		if err != nil {
+			http.Redirect(w, r, fmt.Sprintf("/admin/rounds/%d/resources?err=internal", roundID), http.StatusFound)
+			return
+		}
+		var requests []roundResourceRequest
+		for _, team := range teams {
+			prefix := fmt.Sprintf("team_%d_", team.ID)
+			devs, _ := strconv.Atoi(strings.TrimSpace(r.FormValue(prefix + "devs")))
+			analysts, _ := strconv.Atoi(strings.TrimSpace(r.FormValue(prefix + "analysts")))
+			testers, _ := strconv.Atoi(strings.TrimSpace(r.FormValue(prefix + "testers")))
+			designers, _ := strconv.Atoi(strings.TrimSpace(r.FormValue(prefix + "designers")))
+			devops, _ := strconv.Atoi(strings.TrimSpace(r.FormValue(prefix + "devops")))
+			techlead, _ := strconv.Atoi(strings.TrimSpace(r.FormValue(prefix + "techlead")))
+			// Если все нули, можно пропустить, но сохраним для единообразия
+			requests = append(requests, roundResourceRequest{
+				TeamID:    team.ID,
+				TeamName:  team.Name,
+				Devs:      devs,
+				Analysts:  analysts,
+				Testers:   testers,
+				Designers: designers,
+				DevOps:    devops,
+				TechLead:  techlead,
+			})
+		}
+		if err := saveRoundResourceRequests(r.Context(), pool, roundID, requests); err != nil {
+			http.Redirect(w, r, fmt.Sprintf("/admin/rounds/%d/resources?err=save+failed", roundID), http.StatusFound)
+			return
+		}
+		http.Redirect(w, r, fmt.Sprintf("/admin/rounds/%d/resources?ok=saved", roundID), http.StatusFound)
+	}
 }

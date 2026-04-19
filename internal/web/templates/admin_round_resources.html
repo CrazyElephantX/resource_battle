@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Админка — Ресурсы спринта {{.Round.Number}}</title>
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <div>
+          <div class="kicker">Админка</div>
+          <h1 class="title">Ресурсы спринта {{.Round.Number}}</h1>
+          <div class="muted">{{.Round.Name}}</div>
+        </div>
+        <div class="header-right">
+          <div class="logo-main">
+            <img src="/static/main-logo.png" alt="Логотип" />
+          </div>
+          <div class="logo-partner">
+            <img src="/media/partner-logo" alt="Логотип партнёра" class="partner-logo-img" />
+          </div>
+          {{template "_menu.html"}}
+        </div>
+      </header>
+
+      {{if .FlashErr}}
+      <section class="card" style="border-color: rgba(248,113,113,0.35);">
+        <div style="padding: 12px 14px;">
+          <div class="muted">Ошибка: {{.FlashErr}}</div>
+        </div>
+      </section>
+      <div style="height: 12px;"></div>
+      {{end}}
+      {{if .FlashOK}}
+      <section class="card" style="border-color: rgba(52,211,153,0.35);">
+        <div style="padding: 12px 14px;">
+          <div class="muted">ОК: {{.FlashOK}}</div>
+        </div>
+      </section>
+      <div style="height: 12px;"></div>
+      {{end}}
+
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+          <div class="kicker">Глобальные доступные ресурсы</div>
+          <div class="muted" style="margin-top: 4px;">
+            Общее количество ресурсов, которые можно распределить между командами.
+          </div>
+        </div>
+        <div style="padding: 14px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px;">
+            <div class="muted">
+              <div>Программисты</div>
+              <div class="text-large">{{.Global.Devs}}</div>
+            </div>
+            <div class="muted">
+              <div>Аналитики</div>
+              <div class="text-large">{{.Global.Analysts}}</div>
+            </div>
+            <div class="muted">
+              <div>Тестировщики</div>
+              <div class="text-large">{{.Global.Testers}}</div>
+            </div>
+            <div class="muted">
+              <div>Дизайнеры</div>
+              <div class="text-large">{{.Global.Designers}}</div>
+            </div>
+            <div class="muted">
+              <div>DevOps</div>
+              <div class="text-large">{{.Global.DevOps}}</div>
+            </div>
+            <div class="muted">
+              <div>Техлид</div>
+              <div class="text-large">{{.Global.TechLead}}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div style="height: 16px;"></div>
+
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+          <div class="kicker">Запросы команд</div>
+          <div class="muted" style="margin-top: 4px;">
+            Укажите, сколько ресурсов запрашивает каждая команда. После сохранения система автоматически распределит ресурсы.
+          </div>
+        </div>
+        <form method="post" action="/admin/rounds/{{.Round.ID}}/resources" style="padding: 14px;">
+          <div style="overflow-x: auto;">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Команда</th>
+                  <th>Программисты</th>
+                  <th>Аналитики</th>
+                  <th>Тестировщики</th>
+                  <th>Дизайнеры</th>
+                  <th>DevOps</th>
+                  <th>Техлид</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{range .Teams}}
+                {{$teamID := .ID}}
+                {{$req := index $.RequestsMap $teamID}}
+                <tr>
+                  <td><strong>{{.Name}}</strong></td>
+                  <td>
+                    <input type="number" name="team_{{$teamID}}_devs" value="{{if $req}}{{$req.Devs}}{{else}}0{{end}}" min="0" max="1000" class="input" style="width: 80px;" />
+                  </td>
+                  <td>
+                    <input type="number" name="team_{{$teamID}}_analysts" value="{{if $req}}{{$req.Analysts}}{{else}}0{{end}}" min="0" max="1000" class="input" style="width: 80px;" />
+                  </td>
+                  <td>
+                    <input type="number" name="team_{{$teamID}}_testers" value="{{if $req}}{{$req.Testers}}{{else}}0{{end}}" min="0" max="1000" class="input" style="width: 80px;" />
+                  </td>
+                  <td>
+                    <input type="number" name="team_{{$teamID}}_designers" value="{{if $req}}{{$req.Designers}}{{else}}0{{end}}" min="0" max="1000" class="input" style="width: 80px;" />
+                  </td>
+                  <td>
+                    <input type="number" name="team_{{$teamID}}_devops" value="{{if $req}}{{$req.DevOps}}{{else}}0{{end}}" min="0" max="1000" class="input" style="width: 80px;" />
+                  </td>
+                  <td>
+                    <input type="number" name="team_{{$teamID}}_techlead" value="{{if $req}}{{$req.TechLead}}{{else}}0{{end}}" min="0" max="1000" class="input" style="width: 80px;" />
+                  </td>
+                </tr>
+                {{end}}
+              </tbody>
+            </table>
+          </div>
+          <div style="margin-top: 20px;">
+            <button class="btn" type="submit">Сохранить запросы</button>
+          </div>
+        </form>
+      </section>
+
+      {{if .Allocations}}
+      <div style="height: 16px;"></div>
+
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+          <div class="kicker">Результаты распределения</div>
+          <div class="muted" style="margin-top: 4px;">
+            Показывает, сколько ресурсов получила каждая команда после распределения. Зелёным выделены ресурсы, которые были выделены полностью, красным — недостающие.
+          </div>
+        </div>
+        <div style="padding: 14px;">
+          <div style="overflow-x: auto;">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Команда</th>
+                  <th>Программисты</th>
+                  <th>Аналитики</th>
+                  <th>Тестировщики</th>
+                  <th>Дизайнеры</th>
+                  <th>DevOps</th>
+                  <th>Техлид</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{range .Allocations}}
+                <tr>
+                  <td><strong>{{.TeamName}}</strong></td>
+                  <td>
+                    <div>{{.Devs}} <span class="{{if ge .DevsDiff 0}}text-green{{else}}text-red{{end}}">({{if ge .DevsDiff 0}}+{{end}}{{.DevsDiff}})</span></div>
+                  </td>
+                  <td>
+                    <div>{{.Analysts}} <span class="{{if ge .AnalystsDiff 0}}text-green{{else}}text-red{{end}}">({{if ge .AnalystsDiff 0}}+{{end}}{{.AnalystsDiff}})</span></div>
+                  </td>
+                  <td>
+                    <div>{{.Testers}} <span class="{{if ge .TestersDiff 0}}text-green{{else}}text-red{{end}}">({{if ge .TestersDiff 0}}+{{end}}{{.TestersDiff}})</span></div>
+                  </td>
+                  <td>
+                    <div>{{.Designers}} <span class="{{if ge .DesignersDiff 0}}text-green{{else}}text-red{{end}}">({{if ge .DesignersDiff 0}}+{{end}}{{.DesignersDiff}})</span></div>
+                  </td>
+                  <td>
+                    <div>{{.DevOps}} <span class="{{if ge .DevOpsDiff 0}}text-green{{else}}text-red{{end}}">({{if ge .DevOpsDiff 0}}+{{end}}{{.DevOpsDiff}})</span></div>
+                  </td>
+                  <td>
+                    <div>{{.TechLead}} <span class="{{if ge .TechLeadDiff 0}}text-green{{else}}text-red{{end}}">({{if ge .TechLeadDiff 0}}+{{end}}{{.TechLeadDiff}})</span></div>
+                  </td>
+                </tr>
+                {{end}}
+              </tbody>
+            </table>
+          </div>
+          <div class="muted" style="margin-top: 12px;">
+            <strong>Пояснение:</strong> Число в скобках показывает разницу между полученным и запрошенным количеством. Положительное значение означает, что команда получила больше, чем запросила (если ресурсов хватило на всех), отрицательное — что получила меньше.
+          </div>
+        </div>
+      </section>
+      {{end}}
+
+      <div style="height: 16px;"></div>
+
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+          <div class="kicker">Действия</div>
+        </div>
+        <div style="padding: 14px;">
+          <div style="display: flex; gap: 12px;">
+            <a href="/admin/rounds/{{.Round.ID}}" class="btn btn-outline">Вернуться к спринту</a>
+            <a href="/admin/rounds" class="btn btn-outline">К списку спринтов</a>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+    <script>
+      // Простая валидация: не допускать отрицательные значения
+      document.querySelectorAll('input[type="number"]').forEach(input => {
+        input.addEventListener('change', function() {
+          if (this.value < 0) this.value = 0;
+          if (this.value > 1000) this.value = 1000;
+        });
+      });
+    </script>
+  </body>
+</html>
