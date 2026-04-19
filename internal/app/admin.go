@@ -461,12 +461,22 @@ func adminRoundDetailGet(pool *pgxpool.Pool, tpl *template.Template) http.Handle
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		// Round matrix is for one-time tasks only (repeatable tasks are managed in /admin/game).
-		tasks, err := listTasksByRepeatable(r.Context(), pool, false)
+		// Load both one-time and repeatable tasks, sorted by title.
+		oneTime, err := listTasksByRepeatable(r.Context(), pool, false)
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
+		repeatable, err := listTasksByRepeatable(r.Context(), pool, true)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		tasks := append(oneTime, repeatable...)
+		// Sort by title ascending.
+		sort.Slice(tasks, func(i, j int) bool {
+			return tasks[i].Title < tasks[j].Title
+		})
 		checked, err := listCompletionsForRound(r.Context(), pool, roundID)
 		if err != nil {
 			http.Error(w, "internal error", http.StatusInternalServerError)
@@ -1542,7 +1552,7 @@ WHERE repeatable = false
     SELECT 1 FROM completions c
     WHERE c.task_id = t.id
   )
-ORDER BY created_at ASC, id ASC`, teamID)
+ORDER BY title ASC, id ASC`, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -1569,7 +1579,7 @@ FROM tasks
 WHERE repeatable = true
   AND active = true
   AND (team_id IS NULL OR team_id = $1)
-ORDER BY created_at ASC, id ASC`, teamID)
+ORDER BY title ASC, id ASC`, teamID)
 	if err != nil {
 		return nil, err
 	}
