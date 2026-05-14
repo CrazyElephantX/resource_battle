@@ -29,25 +29,42 @@ body {
 }
 
 .header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
   margin-bottom: 18px;
 }
 
-.header-right {
+.header-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.header-menu {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
+}
+
+.header-logos {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 50px;
 }
 
 .logo-main img,
-.logo-partner img {
+.logo-partner img,
+.logo-partner3 img {
   display: block;
-  max-height: 36px;
+  max-height: 50px;
+  object-fit: contain;
 }
 
 .logo-partner {
+  opacity: 0.9;
+}
+
+.logo-partner3 {
   opacity: 0.9;
 }
 

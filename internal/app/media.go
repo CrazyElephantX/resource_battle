@@ -33,6 +33,30 @@ WHERE id = 1 AND partner_logo_data IS NOT NULL`).Scan(&mime, &data)
 	}
 }
 
+func handlePartner3Logo(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var mime string
+		var data []byte
+		err := pool.QueryRow(r.Context(), `
+SELECT partner3_logo_mime, partner3_logo_data
+FROM app_settings
+WHERE id = 1 AND partner3_logo_data IS NOT NULL`).Scan(&mime, &data)
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				http.NotFound(w, r)
+				return
+			}
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		if mime == "" {
+			mime = "image/png"
+		}
+		w.Header().Set("Content-Type", mime)
+		_, _ = w.Write(data)
+	}
+}
+
 func handleQRImage(pool *pgxpool.Pool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		idStr := chi.URLParam(r, "id")
@@ -62,4 +86,3 @@ WHERE id=$1 AND active=true`, id).Scan(&mime, &data)
 		_, _ = w.Write(data)
 	}
 }
-

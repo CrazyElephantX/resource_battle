@@ -9,18 +9,25 @@
   <body>
     <main class="container">
       <header class="header">
-        <div>
-          <div class="kicker">Админка</div>
-          <h1 class="title">Редактирование QR‑кода</h1>
+        <div class="header-top">
+          <div>
+            <div class="kicker">Админка</div>
+            <h1 class="title">Редактирование QR‑кода</h1>
+          </div>
+          <div class="header-menu">
+            {{template "_menu.html"}}
+          </div>
         </div>
-        <div class="header-right">
+        <div class="header-logos">
           <div class="logo-main">
             <img src="/static/main-logo.png" alt="Логотип" />
           </div>
           <div class="logo-partner">
             <img src="/media/partner-logo" alt="Логотип партнёра" class="partner-logo-img" />
           </div>
-          {{template "_menu.html"}}
+          <div class="logo-partner3">
+            <img src="/media/partner3-logo" alt="Логотип партнёра 3" class="partner-logo-img" onerror="this.style.display='none'" />
+          </div>
         </div>
       </header>
 
@@ -77,7 +84,7 @@
               <img src="/media/qr/{{.QR.ID}}" alt="{{.QR.Title}}" style="max-width: 200px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);" />
             </div>
             <label class="muted" style="flex:1; min-width: 200px;">
-              Новое изображение (опционально, до 512 КБ)
+              Новое изображение (опционально, до 600 КБ)
               <input type="file" name="image" accept="image/*" class="input" style="margin-top:6px; padding:6px;" />
               <div class="muted" style="font-size:0.9em; margin-top:4px;">Оставьте пустым, чтобы сохранить текущее</div>
             </label>

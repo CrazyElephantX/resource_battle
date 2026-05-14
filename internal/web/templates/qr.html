@@ -9,18 +9,25 @@
   <body>
     <main class="container">
       <header class="header">
-        <div>
-          <div class="kicker">Resource Battle</div>
-          <h1 class="title">QR‑коды</h1>
+        <div class="header-top">
+          <div>
+            <div class="kicker">Resource Battle</div>
+            <h1 class="title">QR‑коды</h1>
+          </div>
+          <div class="header-menu">
+            {{template "_menu.html"}}
+          </div>
         </div>
-        <div class="header-right">
+        <div class="header-logos">
           <div class="logo-main">
             <img src="/static/main-logo.png" alt="Логотип" />
           </div>
           <div class="logo-partner">
             <img src="/media/partner-logo" alt="Логотип партнёра" class="partner-logo-img" />
           </div>
-          {{template "_menu.html"}}
+          <div class="logo-partner3">
+            <img src="/media/partner3-logo" alt="Логотип партнёра 3" class="partner-logo-img" onerror="this.style.display='none'" />
+          </div>
         </div>
       </header>
 

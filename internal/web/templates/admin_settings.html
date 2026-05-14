@@ -9,18 +9,25 @@
   <body>
     <main class="container">
       <header class="header">
-        <div>
-          <div class="kicker">Админка</div>
-          <h1 class="title">Настройки</h1>
+        <div class="header-top">
+          <div>
+            <div class="kicker">Админка</div>
+            <h1 class="title">Настройки</h1>
+          </div>
+          <div class="header-menu">
+            {{template "_menu.html"}}
+          </div>
         </div>
-        <div class="header-right">
+        <div class="header-logos">
           <div class="logo-main">
             <img src="/static/main-logo.png" alt="Логотип" />
           </div>
           <div class="logo-partner">
             <img src="/media/partner-logo" alt="Логотип партнёра" class="partner-logo-img" />
           </div>
-          {{template "_menu.html"}}
+          <div class="logo-partner3">
+            <img src="/media/partner3-logo" alt="Логотип партнёра 3" class="partner-logo-img" onerror="this.style.display='none'" />
+          </div>
         </div>
       </header>
 
@@ -47,11 +54,33 @@
         </div>
         <form method="post" action="/admin/settings/logo" enctype="multipart/form-data" style="padding: 14px; display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
           <label class="muted">
-            Файл (PNG/JPEG, до 512 КБ)
+            Файл (PNG/JPEG, до 600 КБ)
             <input type="file" name="logo" accept="image/*" required class="input" style="margin-top:6px; padding:6px;" />
           </label>
           <button class="btn" type="submit">Загрузить</button>
         </form>
+      </section>
+
+      <div style="height: 16px;"></div>
+
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+          <div class="kicker">Логотип партнёра 3</div>
+        </div>
+        <form method="post" action="/admin/settings/logo3" enctype="multipart/form-data" style="padding: 14px; display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
+          <label class="muted">
+            Файл (PNG/JPEG, до 600 КБ)
+            <input type="file" name="logo" accept="image/*" required class="input" style="margin-top:6px; padding:6px;" />
+          </label>
+          <button class="btn" type="submit">Загрузить</button>
+        </form>
+        <div style="padding: 0 14px 14px;">
+          <form method="post" action="/admin/settings/logo3/delete" onsubmit="return confirm('Удалить логотип партнёра 3?');">
+            <button type="submit" class="btn" style="background-color: #dc2626; border-color: #dc2626; color: white;">
+              Удалить логотип партнёра 3
+            </button>
+          </form>
+        </div>
       </section>
 
       <div style="height: 16px;"></div>
@@ -77,7 +106,7 @@
             <input name="description" class="input" style="margin-top:6px; width:100%;" />
           </label>
           <label class="muted">
-            Файл QR (до 512 КБ)
+            Файл QR (до 600 КБ)
             <input type="file" name="image" accept="image/*" required class="input" style="margin-top:6px; padding:6px;" />
           </label>
           <button class="btn" type="submit">Добавить</button>

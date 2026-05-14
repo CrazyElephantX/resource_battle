@@ -167,6 +167,8 @@ func mountAdmin(r chi.Router, pool *pgxpool.Pool, tpl *template.Template) {
 
 	r.Get("/settings", adminSettingsGet(pool, tpl))
 	r.Post("/settings/logo", adminSettingsLogo(pool))
+	r.Post("/settings/logo3", adminSettingsLogo3(pool))
+	r.Post("/settings/logo3/delete", adminSettingsLogo3Delete(pool))
 	r.Post("/settings/qr", adminSettingsQR(pool))
 	r.Post("/settings/qr/{id}/toggle-show", adminSettingsQRToggleShow(pool))
 	r.Post("/settings/qr/{id}/delete", adminSettingsQRDelete(pool))
@@ -1184,7 +1186,7 @@ func adminSettingsLogo(pool *pgxpool.Pool) http.HandlerFunc {
 			http.Redirect(w, r, "/admin/settings?err=bad+form", http.StatusFound)
 			return
 		}
-		filename, mime, data, err := readUploadedImage(r, "logo", 512*1024)
+		filename, mime, data, err := readUploadedImage(r, "logo", 600*1024)
 		if err != nil {
 			http.Redirect(w, r, "/admin/settings?err=bad+file", http.StatusFound)
 			return
@@ -1205,6 +1207,50 @@ SET partner_logo_filename=$1,
 	}
 }
 
+func adminSettingsLogo3(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseMultipartForm(1 << 20); err != nil { // 1 MiB
+			http.Redirect(w, r, "/admin/settings?err=bad+form", http.StatusFound)
+			return
+		}
+		filename, mime, data, err := readUploadedImage(r, "logo", 600*1024)
+		if err != nil {
+			http.Redirect(w, r, "/admin/settings?err=bad+file", http.StatusFound)
+			return
+		}
+		_, err = pool.Exec(r.Context(), `
+INSERT INTO app_settings(id, partner3_logo_filename, partner3_logo_mime, partner3_logo_data)
+VALUES (1,$1,$2,$3)
+ON CONFLICT (id) DO UPDATE
+SET partner3_logo_filename=$1,
+		  partner3_logo_mime=$2,
+		  partner3_logo_data=$3,
+		  updated_at=now()`, filename, mime, data)
+		if err != nil {
+			http.Redirect(w, r, "/admin/settings?err=save+failed", http.StatusFound)
+			return
+		}
+		http.Redirect(w, r, "/admin/settings?ok=logo3+updated", http.StatusFound)
+	}
+}
+
+func adminSettingsLogo3Delete(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_, err := pool.Exec(r.Context(), `
+UPDATE app_settings
+SET partner3_logo_filename = NULL,
+		  partner3_logo_mime = NULL,
+		  partner3_logo_data = NULL,
+		  updated_at = now()
+WHERE id = 1`)
+		if err != nil {
+			http.Redirect(w, r, "/admin/settings?err=delete+failed", http.StatusFound)
+			return
+		}
+		http.Redirect(w, r, "/admin/settings?ok=logo3+deleted", http.StatusFound)
+	}
+}
+
 func adminSettingsQR(pool *pgxpool.Pool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseMultipartForm(1 << 20); err != nil {
@@ -1222,7 +1268,7 @@ func adminSettingsQR(pool *pgxpool.Pool) http.HandlerFunc {
 			http.Redirect(w, r, "/admin/settings?err=bad+title", http.StatusFound)
 			return
 		}
-		filename, mime, data, err := readUploadedImage(r, "image", 512*1024)
+		filename, mime, data, err := readUploadedImage(r, "image", 600*1024)
 		if err != nil {
 			http.Redirect(w, r, "/admin/settings?err=bad+file", http.StatusFound)
 			return
@@ -1342,13 +1388,13 @@ func adminSettingsQREditPost(pool *pgxpool.Pool) http.HandlerFunc {
 		if err == nil {
 			// есть новое изображение
 			defer file.Close()
-			limited := io.LimitReader(file, 512*1024+1)
+			limited := io.LimitReader(file, 600*1024+1)
 			b, err := io.ReadAll(limited)
 			if err != nil {
 				http.Redirect(w, r, "/admin/settings?err=bad+file", http.StatusFound)
 				return
 			}
-			if int64(len(b)) > 512*1024 {
+			if int64(len(b)) > 600*1024 {
 				http.Redirect(w, r, "/admin/settings?err=file+too+large", http.StatusFound)
 				return
 			}
