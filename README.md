@@ -23,6 +23,7 @@ docker compose up --build
 # IT‑игра «Ресурсный батл»
 
 ## Видео
+Распаковка игры ресурсный батл и краткие правила
 - [vkvideo](https://vkvideo.ru/video-79866382_456239067)
 - [rutube](https://rutube.ru/video/private/1ac8ff20455fd5d6cb43d2b1940831ba/?p=ES0Ql_rwR23Lo-WqepISSQ)
 - [youtube](https://youtu.be/WUSoaqWYQH4)
