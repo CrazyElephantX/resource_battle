@@ -22,6 +22,11 @@ docker compose up --build
 
 # IT‑игра «Ресурсный батл»
 
+## Видео
+- [vkvideo](https://vkvideo.ru/video-79866382_456239067)
+- [rutube](https://rutube.ru/video/private/1ac8ff20455fd5d6cb43d2b1940831ba/?p=ES0Ql_rwR23Lo-WqepISSQ)
+- [youtube](https://youtu.be/WUSoaqWYQH4)
+
 Командная настольная игра про баланс ресурсов, приоритизацию и технические компромиссы в IT‑проектах.
 ## 1. Компоненты
 - Набор проектных сценариев (A, B, C, D, E, F) с описанием бизнеса и стартовых условий.
