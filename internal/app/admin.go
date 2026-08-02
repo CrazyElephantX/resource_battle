@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"resource_battle/internal/web"
 	"sort"
 	"strconv"
 	"strings"
@@ -167,6 +168,9 @@ func mountAdmin(r chi.Router, pool *pgxpool.Pool, tpl *template.Template) {
 
 	r.Get("/settings", adminSettingsGet(pool, tpl))
 	r.Post("/settings/logo", adminSettingsLogo(pool))
+	r.Post("/settings/logo/delete", adminSettingsLogoDelete(pool))
+	r.Post("/settings/logo/main", adminSettingsMainLogo(pool))
+	r.Post("/settings/logo/main/delete", adminSettingsMainLogoDelete(pool))
 	r.Post("/settings/logo3", adminSettingsLogo3(pool))
 	r.Post("/settings/logo3/delete", adminSettingsLogo3Delete(pool))
 	r.Post("/settings/qr", adminSettingsQR(pool))
@@ -1180,75 +1184,137 @@ func adminSettingsGet(pool *pgxpool.Pool, tpl *template.Template) http.HandlerFu
 	}
 }
 
-func adminSettingsLogo(pool *pgxpool.Pool) http.HandlerFunc {
+// readPresetLogo читает файл логотипа из embedded-папки static/logo/
+// и определяет MIME-тип по расширению.
+func readPresetLogo(name string) (mime string, data []byte, err error) {
+	logoPath := "static/logo/" + name
+	data, err = web.FS.ReadFile(logoPath)
+	if err != nil {
+		return "", nil, err
+	}
+	mime = "image/png"
+	if strings.HasSuffix(name, ".jpg") || strings.HasSuffix(name, ".jpeg") {
+		mime = "image/jpeg"
+	} else if strings.HasSuffix(name, ".gif") {
+		mime = "image/gif"
+	} else if strings.HasSuffix(name, ".webp") {
+		mime = "image/webp"
+	} else if strings.HasSuffix(name, ".svg") {
+		mime = "image/svg+xml"
+	}
+	return mime, data, nil
+}
+
+// logoUploadParams определяет, какие колонки в app_settings обновлять.
+type logoUploadParams struct {
+	FilenameCol string
+	MimeCol     string
+	DataCol     string
+	FlashOK     string
+}
+
+func handleLogoUpload(pool *pgxpool.Pool, params logoUploadParams) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := r.ParseMultipartForm(1 << 20); err != nil { // 1 MiB
 			http.Redirect(w, r, "/admin/settings?err=bad+form", http.StatusFound)
 			return
 		}
-		filename, mime, data, err := readUploadedImage(r, "logo", 600*1024)
-		if err != nil {
-			http.Redirect(w, r, "/admin/settings?err=bad+file", http.StatusFound)
-			return
+
+		var filename, mime string
+		var data []byte
+
+		presetLogo := strings.TrimSpace(r.FormValue("preset_logo"))
+		if presetLogo != "" {
+			var err error
+			mime, data, err = readPresetLogo(presetLogo)
+			if err != nil {
+				http.Redirect(w, r, "/admin/settings?err=preset+logo+not+found", http.StatusFound)
+				return
+			}
+			filename = presetLogo
+		} else {
+			var err error
+			filename, mime, data, err = readUploadedImage(r, "logo", 600*1024)
+			if err != nil {
+				http.Redirect(w, r, "/admin/settings?err=bad+file", http.StatusFound)
+				return
+			}
 		}
-		_, err = pool.Exec(r.Context(), `
-INSERT INTO app_settings(id, partner_logo_filename, partner_logo_mime, partner_logo_data)
+
+		query := fmt.Sprintf(`
+INSERT INTO app_settings(id, %[1]s, %[2]s, %[3]s)
 VALUES (1,$1,$2,$3)
 ON CONFLICT (id) DO UPDATE
-SET partner_logo_filename=$1,
-    partner_logo_mime=$2,
-    partner_logo_data=$3,
-    updated_at=now()`, filename, mime, data)
+SET %[1]s=$1,
+    %[2]s=$2,
+    %[3]s=$3,
+    updated_at=now()`, params.FilenameCol, params.MimeCol, params.DataCol)
+
+		_, err := pool.Exec(r.Context(), query, filename, mime, data)
 		if err != nil {
 			http.Redirect(w, r, "/admin/settings?err=save+failed", http.StatusFound)
 			return
 		}
-		http.Redirect(w, r, "/admin/settings?ok=logo+updated", http.StatusFound)
+		http.Redirect(w, r, "/admin/settings?ok="+params.FlashOK, http.StatusFound)
 	}
 }
 
-func adminSettingsLogo3(pool *pgxpool.Pool) http.HandlerFunc {
+func handleLogoDelete(pool *pgxpool.Pool, filenameCol, mimeCol, dataCol, flashOK string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if err := r.ParseMultipartForm(1 << 20); err != nil { // 1 MiB
-			http.Redirect(w, r, "/admin/settings?err=bad+form", http.StatusFound)
-			return
-		}
-		filename, mime, data, err := readUploadedImage(r, "logo", 600*1024)
-		if err != nil {
-			http.Redirect(w, r, "/admin/settings?err=bad+file", http.StatusFound)
-			return
-		}
-		_, err = pool.Exec(r.Context(), `
-INSERT INTO app_settings(id, partner3_logo_filename, partner3_logo_mime, partner3_logo_data)
-VALUES (1,$1,$2,$3)
-ON CONFLICT (id) DO UPDATE
-SET partner3_logo_filename=$1,
-		  partner3_logo_mime=$2,
-		  partner3_logo_data=$3,
-		  updated_at=now()`, filename, mime, data)
-		if err != nil {
-			http.Redirect(w, r, "/admin/settings?err=save+failed", http.StatusFound)
-			return
-		}
-		http.Redirect(w, r, "/admin/settings?ok=logo3+updated", http.StatusFound)
-	}
-}
-
-func adminSettingsLogo3Delete(pool *pgxpool.Pool) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		_, err := pool.Exec(r.Context(), `
+		query := fmt.Sprintf(`
 UPDATE app_settings
-SET partner3_logo_filename = NULL,
-		  partner3_logo_mime = NULL,
-		  partner3_logo_data = NULL,
-		  updated_at = now()
-WHERE id = 1`)
+SET %[1]s = NULL,
+    %[2]s = NULL,
+    %[3]s = NULL,
+    updated_at = now()
+WHERE id = 1`, filenameCol, mimeCol, dataCol)
+
+		_, err := pool.Exec(r.Context(), query)
 		if err != nil {
 			http.Redirect(w, r, "/admin/settings?err=delete+failed", http.StatusFound)
 			return
 		}
-		http.Redirect(w, r, "/admin/settings?ok=logo3+deleted", http.StatusFound)
+		http.Redirect(w, r, "/admin/settings?ok="+flashOK, http.StatusFound)
 	}
+}
+
+func adminSettingsLogo(pool *pgxpool.Pool) http.HandlerFunc {
+	return handleLogoUpload(pool, logoUploadParams{
+		FilenameCol: "partner_logo_filename",
+		MimeCol:     "partner_logo_mime",
+		DataCol:     "partner_logo_data",
+		FlashOK:     "logo+updated",
+	})
+}
+
+func adminSettingsLogoDelete(pool *pgxpool.Pool) http.HandlerFunc {
+	return handleLogoDelete(pool, "partner_logo_filename", "partner_logo_mime", "partner_logo_data", "logo+deleted")
+}
+
+func adminSettingsMainLogo(pool *pgxpool.Pool) http.HandlerFunc {
+	return handleLogoUpload(pool, logoUploadParams{
+		FilenameCol: "main_logo_filename",
+		MimeCol:     "main_logo_mime",
+		DataCol:     "main_logo_data",
+		FlashOK:     "main+logo+updated",
+	})
+}
+
+func adminSettingsMainLogoDelete(pool *pgxpool.Pool) http.HandlerFunc {
+	return handleLogoDelete(pool, "main_logo_filename", "main_logo_mime", "main_logo_data", "main+logo+deleted")
+}
+
+func adminSettingsLogo3(pool *pgxpool.Pool) http.HandlerFunc {
+	return handleLogoUpload(pool, logoUploadParams{
+		FilenameCol: "partner3_logo_filename",
+		MimeCol:     "partner3_logo_mime",
+		DataCol:     "partner3_logo_data",
+		FlashOK:     "logo3+updated",
+	})
+}
+
+func adminSettingsLogo3Delete(pool *pgxpool.Pool) http.HandlerFunc {
+	return handleLogoDelete(pool, "partner3_logo_filename", "partner3_logo_mime", "partner3_logo_data", "logo3+deleted")
 }
 
 func adminSettingsQR(pool *pgxpool.Pool) http.HandlerFunc {

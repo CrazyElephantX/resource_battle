@@ -21,10 +21,10 @@
         </div>
         <div class="header-logos">
           <div class="logo-main">
-            <img src="/static/main-logo.png" alt="Логотип" />
+            <img src="/media/main-logo" alt="Логотип" class="main-logo-img" onerror="this.style.display='none'" />
           </div>
           <div class="logo-partner">
-            <img src="/media/partner-logo" alt="Логотип партнёра" class="partner-logo-img" />
+            <img src="/media/partner-logo" alt="Логотип партнёра" class="partner-logo-img" onerror="this.style.display='none'" />
           </div>
           <div class="logo-partner3">
             <img src="/media/partner3-logo" alt="Логотип партнёра 3" class="partner-logo-img" onerror="this.style.display='none'" />
@@ -33,7 +33,7 @@
       </header>
 
       {{if .FlashErr}}
-      <section class="card" style="border-color: rgba(248,113,113,0.35);">
+      <section class="card" style="border-color: var(--flash-err-border);">
         <div style="padding: 12px 14px;">
           <div class="muted">Ошибка: {{.FlashErr}}</div>
         </div>
@@ -41,7 +41,7 @@
       <div style="height: 12px;"></div>
       {{end}}
       {{if .FlashOK}}
-      <section class="card" style="border-color: rgba(52,211,153,0.35);">
+      <section class="card" style="border-color: var(--flash-ok-border);">
         <div style="padding: 12px 14px;">
           <div class="muted">ОК: {{.FlashOK}}</div>
         </div>
@@ -50,7 +50,7 @@
       {{end}}
 
       <section class="card">
-        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid var(--card-border-bottom);">
           <div class="kicker">Глобальные доступные ресурсы</div>
           <div class="muted" style="margin-top: 4px;">
             Общее количество ресурсов, которые можно распределить между командами.
@@ -89,7 +89,7 @@
       <div style="height: 16px;"></div>
 
       <section class="card">
-        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid var(--card-border-bottom);">
           <div class="kicker">Запросы команд</div>
           <div class="muted" style="margin-top: 4px;">
             Укажите, сколько ресурсов запрашивает каждая команда. После сохранения система автоматически распределит ресурсы.
@@ -148,7 +148,7 @@
       <div style="height: 16px;"></div>
 
       <section class="card">
-        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid var(--card-border-bottom);">
           <div class="kicker">Результаты распределения</div>
           <div class="muted" style="margin-top: 4px;">
             Показывает, сколько ресурсов получила каждая команда после распределения. Зелёным выделены ресурсы, которые были выделены полностью, красным — недостающие.
@@ -205,7 +205,7 @@
       <div style="height: 16px;"></div>
 
       <section class="card">
-        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid var(--card-border-bottom);">
           <div class="kicker">Действия</div>
         </div>
         <div style="padding: 14px;">

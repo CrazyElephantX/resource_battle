@@ -31,6 +31,7 @@ func New(pool *pgxpool.Pool) http.Handler {
 	r.Mount("/static/", static)
 
 	r.Route("/media", func(r chi.Router) {
+		r.Get("/main-logo", handleMainLogo(pool))
 		r.Get("/partner-logo", handlePartnerLogo(pool))
 		r.Get("/partner3-logo", handlePartner3Logo(pool))
 		r.Get("/qr/{id}", handleQRImage(pool))
