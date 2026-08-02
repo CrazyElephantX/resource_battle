@@ -20,7 +20,7 @@
         </div>
         <div class="header-logos">
           <div class="logo-main">
-            <img src="/static/main-logo.png" alt="Логотип" />
+            <img src="/media/main-logo" alt="Логотип" class="main-logo-img" onerror="this.style.display='none'" />
           </div>
           <div class="logo-partner">
             <img src="/media/partner-logo" alt="Логотип партнёра" class="partner-logo-img" />
@@ -32,7 +32,7 @@
       </header>
 
       {{if .FlashErr}}
-      <section class="card" style="border-color: rgba(248,113,113,0.35);">
+      <section class="card" style="border-color: var(--flash-err-border);">
         <div style="padding: 12px 14px;">
           <div class="muted">Ошибка: {{.FlashErr}}</div>
         </div>
@@ -40,7 +40,7 @@
       <div style="height: 12px;"></div>
       {{end}}
       {{if .FlashOK}}
-      <section class="card" style="border-color: rgba(52,211,153,0.35);">
+      <section class="card" style="border-color: var(--flash-ok-border);">
         <div style="padding: 12px 14px;">
           <div class="muted">ОК: {{.FlashOK}}</div>
         </div>
@@ -49,34 +49,90 @@
       {{end}}
 
       <section class="card">
-        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
-          <div class="kicker">Логотип партнёра</div>
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid var(--card-border-bottom);">
+          <div class="kicker">Основной логотип</div>
         </div>
-        <form method="post" action="/admin/settings/logo" enctype="multipart/form-data" style="padding: 14px; display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
+        <form method="post" action="/admin/settings/logo/main" enctype="multipart/form-data" style="padding: 14px; display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
           <label class="muted">
-            Файл (PNG/JPEG, до 600 КБ)
-            <input type="file" name="logo" accept="image/*" required class="input" style="margin-top:6px; padding:6px;" />
+            Выбрать из папки
+            <select name="preset_logo" class="input" style="margin-top:6px; min-width: 160px;">
+              <option value="">— не выбрано —</option>
+              <option value="T1.png">T1.png</option>
+              <option value="infotecs.png">infotecs.png</option>
+              <option value="TN-Digital.png">TN-Digital.png</option>
+            </select>
           </label>
-          <button class="btn" type="submit">Загрузить</button>
+          <label class="muted">
+            Или загрузить свой файл (PNG/JPEG, до 600 КБ)
+            <input type="file" name="logo" accept="image/*" class="input" style="margin-top:6px; padding:6px;" />
+          </label>
+          <button class="btn" type="submit">Установить</button>
         </form>
+        <div style="padding: 0 14px 14px;">
+          <form method="post" action="/admin/settings/logo/main/delete" onsubmit="return confirm('Удалить основной логотип?');">
+            <button type="submit" class="btn" style="background-color: var(--danger-btn-bg); border-color: var(--danger-btn-border); color: white;">
+              Удалить основной логотип
+            </button>
+          </form>
+        </div>
       </section>
 
       <div style="height: 16px;"></div>
 
       <section class="card">
-        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid var(--card-border-bottom);">
+          <div class="kicker">Логотип партнёра</div>
+        </div>
+        <form method="post" action="/admin/settings/logo" enctype="multipart/form-data" style="padding: 14px; display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
+          <label class="muted">
+            Выбрать из папки
+            <select name="preset_logo" class="input" style="margin-top:6px; min-width: 160px;">
+              <option value="">— не выбрано —</option>
+              <option value="T1.png">T1.png</option>
+              <option value="infotecs.png">infotecs.png</option>
+              <option value="TN-Digital.png">TN-Digital.png</option>
+            </select>
+          </label>
+          <label class="muted">
+            Или загрузить свой файл (PNG/JPEG, до 600 КБ)
+            <input type="file" name="logo" accept="image/*" class="input" style="margin-top:6px; padding:6px;" />
+          </label>
+          <button class="btn" type="submit">Установить</button>
+        </form>
+        <div style="padding: 0 14px 14px;">
+          <form method="post" action="/admin/settings/logo/delete" onsubmit="return confirm('Удалить логотип партнёра?');">
+            <button type="submit" class="btn" style="background-color: var(--danger-btn-bg); border-color: var(--danger-btn-border); color: white;">
+              Удалить логотип партнёра
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <div style="height: 16px;"></div>
+
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid var(--card-border-bottom);">
           <div class="kicker">Логотип партнёра 3</div>
         </div>
         <form method="post" action="/admin/settings/logo3" enctype="multipart/form-data" style="padding: 14px; display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
           <label class="muted">
-            Файл (PNG/JPEG, до 600 КБ)
-            <input type="file" name="logo" accept="image/*" required class="input" style="margin-top:6px; padding:6px;" />
+            Выбрать из папки
+            <select name="preset_logo" class="input" style="margin-top:6px; min-width: 160px;">
+              <option value="">— не выбрано —</option>
+              <option value="T1.png">T1.png</option>
+              <option value="infotecs.png">infotecs.png</option>
+              <option value="TN-Digital.png">TN-Digital.png</option>
+            </select>
           </label>
-          <button class="btn" type="submit">Загрузить</button>
+          <label class="muted">
+            Или загрузить свой файл (PNG/JPEG, до 600 КБ)
+            <input type="file" name="logo" accept="image/*" class="input" style="margin-top:6px; padding:6px;" />
+          </label>
+          <button class="btn" type="submit">Установить</button>
         </form>
         <div style="padding: 0 14px 14px;">
           <form method="post" action="/admin/settings/logo3/delete" onsubmit="return confirm('Удалить логотип партнёра 3?');">
-            <button type="submit" class="btn" style="background-color: #dc2626; border-color: #dc2626; color: white;">
+            <button type="submit" class="btn" style="background-color: var(--danger-btn-bg); border-color: var(--danger-btn-border); color: white;">
               Удалить логотип партнёра 3
             </button>
           </form>
@@ -86,7 +142,7 @@
       <div style="height: 16px;"></div>
 
       <section class="card">
-        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid var(--card-border-bottom);">
           <div class="kicker">QR‑коды</div>
         </div>
         <form method="post" action="/admin/settings/qr" enctype="multipart/form-data" style="padding: 14px; display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
@@ -129,9 +185,9 @@
                   </label>
                 </form>
                 <div style="display:flex; gap:4px;">
-                  <a href="/admin/settings/qr/{{.ID}}/edit" class="btn" style="background-color: #3b82f6; border-color: #3b82f6; color: white; padding: 4px 8px; font-size:0.9em; text-decoration:none; text-align:center;">Редактировать</a>
+                  <a href="/admin/settings/qr/{{.ID}}/edit" class="btn" style="background-color: var(--primary-btn-bg); border-color: var(--primary-btn-border); color: white; padding: 4px 8px; font-size:0.9em; text-decoration:none; text-align:center;">Редактировать</a>
                   <form method="post" action="/admin/settings/qr/{{.ID}}/delete" onsubmit="return confirm('Удалить этот QR‑код?');" style="display:inline;">
-                    <button type="submit" class="btn" style="background-color: #dc2626; border-color: #dc2626; color: white; padding: 4px 8px; font-size:0.9em;">Удалить</button>
+                    <button type="submit" class="btn" style="background-color: var(--danger-btn-bg); border-color: var(--danger-btn-border); color: white; padding: 4px 8px; font-size:0.9em;">Удалить</button>
                   </form>
                 </div>
               </div>
@@ -144,16 +200,16 @@
 
       <div style="height: 16px;"></div>
 
-      <section class="card" style="border-color: rgba(248,113,113,0.5);">
-        <div style="padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
-          <div class="kicker" style="color: #f87171;">Опасная зона</div>
+      <section class="card" style="border-color: var(--danger-zone-border);">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid var(--card-border-bottom);">
+          <div class="kicker" style="color: var(--danger-zone-text);">Опасная зона</div>
         </div>
         <div style="padding: 14px;">
           <p class="muted" style="margin-bottom: 12px;">
             Сброс прогресса удалит все выполненные задания (таблица completions) и обнулит временные метки спринтов (started_at, ended_at). Это действие нельзя отменить.
           </p>
           <form method="post" action="/admin/settings/reset" onsubmit="return confirm('Вы уверены, что хотите сбросить весь прогресс? Это действие нельзя отменить.');">
-            <button class="btn" type="submit" style="background-color: #dc2626; border-color: #dc2626; color: white;">
+            <button class="btn" type="submit" style="background-color: var(--danger-btn-bg); border-color: var(--danger-btn-border); color: white;">
               Сбросить прогресс мероприятия
             </button>
           </form>
@@ -163,4 +219,3 @@
     <script src="/static/app.js"></script>
   </body>
 </html>
-

@@ -1,0 +1,8 @@
+BEGIN;
+
+ALTER TABLE app_settings
+ADD COLUMN IF NOT EXISTS main_logo_filename TEXT,
+ADD COLUMN IF NOT EXISTS main_logo_mime TEXT,
+ADD COLUMN IF NOT EXISTS main_logo_data BYTEA;
+
+COMMIT;
