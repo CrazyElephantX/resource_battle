@@ -200,6 +200,34 @@
 
       <div style="height: 16px;"></div>
 
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid var(--card-border-bottom);">
+          <div class="kicker">Команды</div>
+        </div>
+        <form method="post" action="/admin/settings/teams" style="padding: 14px;">
+          <p class="muted" style="margin-bottom: 12px;">
+            Изменение названий команд не влияет на привязку задач, завершённые задания и таблицу лидеров — они привязаны по идентификаторам команд.
+          </p>
+          {{if .Teams}}
+          <div style="display:flex; flex-wrap:wrap; gap:14px;">
+            {{range .Teams}}
+            <label class="muted" style="flex:1; min-width: 180px;">
+              Команда ({{.ID}})
+              <input name="name_{{.ID}}" value="{{.Name}}" class="input" style="margin-top:6px; width:100%;" required />
+            </label>
+            {{end}}
+          </div>
+          <div style="margin-top: 12px;">
+            <button class="btn" type="submit">Сохранить названия команд</button>
+          </div>
+          {{else}}
+          <p class="muted">Команды не найдены.</p>
+          {{end}}
+        </form>
+      </section>
+
+      <div style="height: 16px;"></div>
+
       <section class="card" style="border-color: var(--danger-zone-border);">
         <div style="padding: 14px 14px 10px; border-bottom: 1px solid var(--card-border-bottom);">
           <div class="kicker" style="color: var(--danger-zone-text);">Опасная зона</div>

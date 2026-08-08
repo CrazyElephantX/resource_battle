@@ -85,6 +85,7 @@ type adminQRItem struct {
 
 type adminSettingsPageData struct {
 	QRCodes  []adminQRItem
+	Teams    []adminTeam
 	FlashOK  string
 	FlashErr string
 }
@@ -167,6 +168,7 @@ func mountAdmin(r chi.Router, pool *pgxpool.Pool, tpl *template.Template) {
 	r.Post("/game/delete", adminGameDelete(pool))
 
 	r.Get("/settings", adminSettingsGet(pool, tpl))
+	r.Post("/settings/teams", adminSettingsTeamsUpdate(pool))
 	r.Post("/settings/logo", adminSettingsLogo(pool))
 	r.Post("/settings/logo/delete", adminSettingsLogoDelete(pool))
 	r.Post("/settings/logo/main", adminSettingsMainLogo(pool))
@@ -1176,11 +1178,79 @@ func adminSettingsGet(pool *pgxpool.Pool, tpl *template.Template) http.HandlerFu
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
+		teams, err := listTeams(r.Context(), pool)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 		renderAdmin(tpl, w, "admin_settings.html", adminSettingsPageData{
 			QRCodes:  items,
+			Teams:    teams,
 			FlashOK:  ok,
 			FlashErr: e,
 		})
+	}
+}
+
+// adminSettingsTeamsUpdate обновляет названия команд.
+// Привязка задач/завершений к командам хранится по team_id, поэтому
+// изменение name не ломает существующие связи.
+func adminSettingsTeamsUpdate(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			http.Redirect(w, r, "/admin/settings?err=bad+form", http.StatusFound)
+			return
+		}
+		teams, err := listTeams(r.Context(), pool)
+		if err != nil {
+			http.Redirect(w, r, "/admin/settings?err=load+failed", http.StatusFound)
+			return
+		}
+
+		// Собираем желаемые новые названия, пропуская пустые.
+		updates := make(map[int64]string)
+		for _, t := range teams {
+			name := strings.TrimSpace(r.FormValue(fmt.Sprintf("name_%d", t.ID)))
+			if name == "" {
+				continue
+			}
+			if name != t.Name {
+				updates[t.ID] = name
+			}
+		}
+
+		if len(updates) > 0 {
+			tx, err := pool.Begin(r.Context())
+			if err != nil {
+				http.Redirect(w, r, "/admin/settings?err=tx+failed", http.StatusFound)
+				return
+			}
+			defer tx.Rollback(r.Context())
+
+			// Проверяем уникальность новых имён между собой.
+			seen := make(map[string]bool, len(updates))
+			for _, name := range updates {
+				if seen[name] {
+					http.Redirect(w, r, "/admin/settings?err=duplicate+names", http.StatusFound)
+					return
+				}
+				seen[name] = true
+			}
+
+			for id, name := range updates {
+				if _, err := tx.Exec(r.Context(), `UPDATE teams SET name=$1 WHERE id=$2`, name, id); err != nil {
+					log.Printf("[adminSettingsTeamsUpdate] update team %d: %v", id, err)
+					http.Redirect(w, r, "/admin/settings?err=save+failed", http.StatusFound)
+					return
+				}
+			}
+			if err := tx.Commit(r.Context()); err != nil {
+				http.Redirect(w, r, "/admin/settings?err=commit+failed", http.StatusFound)
+				return
+			}
+		}
+
+		http.Redirect(w, r, "/admin/settings?ok=teams+updated", http.StatusFound)
 	}
 }
 
