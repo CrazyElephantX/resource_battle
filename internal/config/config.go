@@ -7,6 +7,7 @@ import (
 type Config struct {
 	Port        string
 	DatabaseURL string
+	ServerURL   string
 }
 
 func FromEnv() Config {
@@ -17,6 +18,7 @@ func FromEnv() Config {
 	return Config{
 		Port:        port,
 		DatabaseURL: os.Getenv("DATABASE_URL"),
+		ServerURL:   os.Getenv("SERVER_URL"),
 	}
 }
 

@@ -10,7 +10,20 @@ import (
 	"resource_battle/internal/web"
 )
 
+// serverURL — базовый URL приложения (для публичных ссылок и QR).
+var serverURL string
+
+// New создаёт HTTP-хендлер с опциональным URL сервера.
 func New(pool *pgxpool.Pool) http.Handler {
+	return NewWithServerURL(pool, "")
+}
+
+// NewWithServerURL создаёт HTTP-хендлер с указанным URL сервера.
+func NewWithServerURL(pool *pgxpool.Pool, srvURL string) http.Handler {
+	if srvURL == "" {
+		srvURL = serverURL
+	}
+
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -54,9 +67,11 @@ func New(pool *pgxpool.Pool) http.Handler {
 		qrRight := qrCodes[mid:]
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_ = tpl.ExecuteTemplate(w, "dashboard.html", dashboardPageData{
-			Rows:         rows,
-			QRCodesLeft:  qrLeft,
-			QRCodesRight: qrRight,
+			Rows:          rows,
+			QRCodesLeft:   qrLeft,
+			QRCodesRight:  qrRight,
+			ServerURL:     srvURL,
+			SubmissionURL: submissionURL(srvURL),
 		})
 	})
 
@@ -66,5 +81,21 @@ func New(pool *pgxpool.Pool) http.Handler {
 
 	r.Get("/qr", handleQRPage(pool, tpl))
 
+	// Публичные маршруты подачи результатов командами
+	r.Route("/submit", func(r chi.Router) {
+		r.Get("/", handleSubmitLanding(pool, tpl))
+		r.Get("/{teamID}", handleSubmitPage(pool, tpl))
+		r.Post("/{teamID}", handleSubmitPost(pool))
+	})
+
 	return r
+}
+
+// submissionURL формирует URL публичной страницы подачи результатов.
+// Если serverURL не задан — возвращает относительный путь.
+func submissionURL(srvURL string) string {
+	if srvURL != "" {
+		return srvURL + "/submit"
+	}
+	return "/submit"
 }

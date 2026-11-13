@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Resource Battle — {{.Team.Name}} — Подача результатов</title>
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <div class="header-top">
+          <div>
+            <div class="kicker">Resource Battle</div>
+            <h1 class="title">{{.Team.Name}}</h1>
+          </div>
+          <div class="header-menu">
+            <a href="/submit" class="link">Другая команда</a>
+            &nbsp;·&nbsp;
+            <a href="/" class="link">Лидерборд</a>
+          </div>
+        </div>
+        <div class="header-logos">
+          <div class="logo-main">
+            <img src="/media/main-logo" alt="Логотип" class="main-logo-img" onerror="this.style.display='none'" />
+          </div>
+          <div class="logo-partner">
+            <img src="/media/partner-logo" alt="Логотип партнёра" class="partner-logo-img" />
+          </div>
+          <div class="logo-partner3">
+            <img src="/media/partner3-logo" alt="Логотип партнёра 3" class="partner-logo-img" onerror="this.style.display='none'" />
+          </div>
+        </div>
+      </header>
+
+      {{if .FlashErr}}
+      <section class="card" style="border-color: var(--flash-err-border);">
+        <div style="padding: 12px 14px;">
+          <div class="muted">Ошибка: {{.FlashErr}}</div>
+        </div>
+      </section>
+      <div style="height: 12px;"></div>
+      {{end}}
+      {{if .FlashOK}}
+      <section class="card" style="border-color: var(--flash-ok-border);">
+        <div style="padding: 12px 14px;">
+          <div class="muted">ОК: {{.FlashOK}}</div>
+        </div>
+      </section>
+      <div style="height: 12px;"></div>
+      {{end}}
+
+      {{if .NoRound}}
+      <section class="card" style="border-color: var(--danger-zone-border);">
+        <div style="padding: 14px;">
+          <div class="kicker" style="color: var(--danger-zone-text);">Раунд не активен</div>
+          <p class="muted" style="margin-top: 8px;">
+            Сейчас нет активного раунда. Пожалуйста, дождитесь начала текущего раунда.
+          </p>
+        </div>
+      </section>
+      {{else}}
+      <form method="post" action="/submit/{{.Team.ID}}">
+
+        <!-- Блок: выполненные задачи -->
+        <section class="card">
+          <div style="padding: 14px 14px 10px; border-bottom: 1px solid var(--card-border-bottom);">
+            <div class="kicker">Выполненные задачи</div>
+            <p class="muted" style="margin-top: 4px; font-size: 12px;">
+              Отметьте задачи, которые ваша команда выполнила в этом раунде.
+            </p>
+          </div>
+
+          {{if .ActiveTasks}}
+          <div style="padding: 0 14px 14px;">
+            {{range .ActiveTasks}}
+            <label style="display:flex; align-items:center; gap:10px; padding: 10px 0; border-bottom: 1px solid var(--border); cursor:pointer;">
+              <input type="checkbox" name="task_{{.ID}}" value="{{.ID}}" {{if gt .Count 0}}checked{{end}}
+                     style="width:20px; height:20px; accent-color: var(--accent);" />
+              <div style="flex:1;">
+                <div style="font-weight:600;">{{.Title}}</div>
+                {{if .Description}}<div class="muted" style="font-size:12px; margin-top:2px;">{{.Description}}</div>{{end}}
+              </div>
+              <div class="mono" style="font-weight:700; color: var(--accent);">+{{.Points}}</div>
+              {{if gt .Count 0}}<span class="muted" style="font-size:11px;">✓</span>{{end}}
+            </label>
+            {{end}}
+          </div>
+          {{else}}
+          <div style="padding: 14px;">
+            <p class="muted">Активных задач нет.</p>
+          </div>
+          {{end}}
+        </section>
+
+        <div style="height: 16px;"></div>
+
+        <!-- Блок: повторяемые задачи -->
+        <section class="card">
+          <div style="padding: 14px 14px 10px; border-bottom: 1px solid var(--card-border-bottom);">
+            <div class="kicker">Повторяемые задачи</div>
+            <p class="muted" style="margin-top: 4px; font-size: 12px;">
+              Укажите количество выполнений для каждой повторяемой задачи.
+            </p>
+          </div>
+
+          {{if .RepeatableTasks}}
+          <div style="padding: 0 14px 14px;">
+            {{range .RepeatableTasks}}
+            <div style="display:flex; align-items:center; gap:10px; padding: 10px 0; border-bottom: 1px solid var(--border);">
+              <div style="flex:1;">
+                <div style="font-weight:600;">{{.Title}}</div>
+                {{if .Description}}<div class="muted" style="font-size:12px; margin-top:2px;">{{.Description}}</div>{{end}}
+              </div>
+              <input type="number" name="repeat_count_{{.ID}}" value="{{.Count}}" min="0" max="99"
+                     style="width:70px; text-align:center; margin-top:0; padding:8px;" class="input" />
+              <div class="mono" style="font-weight:700; color: var(--accent);">×{{.Points}}</div>
+            </div>
+            {{end}}
+          </div>
+          {{else}}
+          <div style="padding: 14px;">
+            <p class="muted">Повторяемых задач нет.</p>
+          </div>
+          {{end}}
+        </section>
+
+        <div style="height: 16px;"></div>
+
+        <!-- Блок: запрос ресурсов -->
+        <section class="card">
+          <div style="padding: 14px 14px 10px; border-bottom: 1px solid var(--card-border-bottom);">
+            <div class="kicker">Запрос ресурсов на раунд</div>
+            <p class="muted" style="margin-top: 4px; font-size: 12px;">
+              Укажите, сколько специалистов каждого типа вам нужно в этом раунде.
+            </p>
+          </div>
+          <div style="padding: 14px; display:flex; flex-wrap:wrap; gap:12px;">
+            <label class="muted" style="flex:1; min-width: 120px;">
+              Разработчики
+              <input name="res_devs" value="{{.Resources.Devs}}" type="number" min="0" class="input" style="margin-top:6px; width:100%;" />
+            </label>
+            <label class="muted" style="flex:1; min-width: 120px;">
+              Аналитики
+              <input name="res_analysts" value="{{.Resources.Analysts}}" type="number" min="0" class="input" style="margin-top:6px; width:100%;" />
+            </label>
+            <label class="muted" style="flex:1; min-width: 120px;">
+              Тестировщики
+              <input name="res_testers" value="{{.Resources.Testers}}" type="number" min="0" class="input" style="margin-top:6px; width:100%;" />
+            </label>
+            <label class="muted" style="flex:1; min-width: 120px;">
+              Дизайнеры
+              <input name="res_designers" value="{{.Resources.Designers}}" type="number" min="0" class="input" style="margin-top:6px; width:100%;" />
+            </label>
+            <label class="muted" style="flex:1; min-width: 120px;">
+              DevOps
+              <input name="res_devops" value="{{.Resources.DevOps}}" type="number" min="0" class="input" style="margin-top:6px; width:100%;" />
+            </label>
+            <label class="muted" style="flex:1; min-width: 120px;">
+              Техлиды
+              <input name="res_techlead" value="{{.Resources.TechLead}}" type="number" min="0" class="input" style="margin-top:6px; width:100%;" />
+            </label>
+          </div>
+        </section>
+
+        <div style="height: 20px;"></div>
+
+        <div style="display:flex; gap:12px; justify-content:center;">
+          <button type="submit" class="btn" style="padding: 14px 40px; font-size:1.1em; background-color: var(--primary-btn-bg); border-color: var(--primary-btn-border); color: white;">
+            Отправить результаты
+          </button>
+        </div>
+      </form>
+      {{end}}
+
+      <footer class="footer">
+        <div class="muted" style="text-align:center;">
+          Результаты появятся на лидерборде после обработки администратором.
+        </div>
+      </footer>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

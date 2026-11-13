@@ -17,9 +17,15 @@
           <div class="header-menu">
             {{template "_menu.html"}}
             <button class="btn" id="detailsToggle">Детали</button>
+            {{if .SubmissionURL}}
+            &nbsp;·&nbsp;
+            <a href="{{.SubmissionURL}}" class="btn" style="background-color: var(--primary-btn-bg); border-color: var(--primary-btn-border); color: white;">
+              Подать результат
+            </a>
+            {{end}}
           </div>
         </div>
-        <div class="header-logos">
+          <div class="header-logos">
           <div class="logo-main">
             <img src="/media/main-logo" alt="Логотип" class="main-logo-img" onerror="this.style.display='none'" />
           </div>

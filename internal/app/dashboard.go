@@ -20,9 +20,11 @@ type dashboardRow struct {
 }
 
 type dashboardPageData struct {
-	Rows         []dashboardRow
-	QRCodesLeft  []qrCodePublic
-	QRCodesRight []qrCodePublic
+	Rows          []dashboardRow
+	QRCodesLeft   []qrCodePublic
+	QRCodesRight  []qrCodePublic
+	ServerURL     string
+	SubmissionURL string
 }
 
 func leaderboard(ctx context.Context, pool *pgxpool.Pool) ([]dashboardRow, error) {

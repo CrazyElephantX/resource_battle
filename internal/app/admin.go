@@ -84,7 +84,14 @@ type adminQRItem struct {
 }
 
 type adminSettingsPageData struct {
-	QRCodes  []adminQRItem
+	QRCodes    []adminQRItem
+	Teams      []adminTeam
+	ServerURL  string
+	FlashOK    string
+	FlashErr   string
+}
+
+type adminTeamsPageData struct {
 	Teams    []adminTeam
 	FlashOK  string
 	FlashErr string
@@ -169,6 +176,7 @@ func mountAdmin(r chi.Router, pool *pgxpool.Pool, tpl *template.Template) {
 
 	r.Get("/settings", adminSettingsGet(pool, tpl))
 	r.Post("/settings/teams", adminSettingsTeamsUpdate(pool))
+	r.Post("/settings/server-url", adminSettingsServerURL(pool))
 	r.Post("/settings/logo", adminSettingsLogo(pool))
 	r.Post("/settings/logo/delete", adminSettingsLogoDelete(pool))
 	r.Post("/settings/logo/main", adminSettingsMainLogo(pool))
@@ -186,6 +194,11 @@ func mountAdmin(r chi.Router, pool *pgxpool.Pool, tpl *template.Template) {
 	r.Post("/resources", adminResourcesPost(pool))
 	r.Get("/rounds/{roundID}/resources", adminRoundResourcesGet(pool, tpl))
 	r.Post("/rounds/{roundID}/resources", adminRoundResourcesPost(pool))
+
+	r.Get("/teams", adminTeamsGet(pool, tpl))
+	r.Post("/teams", adminTeamsCreate(pool))
+	r.Post("/teams/{id}", adminTeamsUpdate(pool))
+	r.Post("/teams/{id}/delete", adminTeamsDelete(pool))
 }
 
 func renderAdmin(tpl *template.Template, w http.ResponseWriter, name string, data any) {
@@ -1183,11 +1196,18 @@ func adminSettingsGet(pool *pgxpool.Pool, tpl *template.Template) http.HandlerFu
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
+		serverURL := ""
+		row := pool.QueryRow(r.Context(), `SELECT server_url FROM app_settings LIMIT 1`)
+		if err := row.Scan(&serverURL); err != nil {
+			// Column might not exist yet, or no settings row
+			serverURL = ""
+		}
 		renderAdmin(tpl, w, "admin_settings.html", adminSettingsPageData{
-			QRCodes:  items,
-			Teams:    teams,
-			FlashOK:  ok,
-			FlashErr: e,
+			QRCodes:   items,
+			Teams:     teams,
+			ServerURL: serverURL,
+			FlashOK:   ok,
+			FlashErr:  e,
 		})
 	}
 }
@@ -1251,6 +1271,170 @@ func adminSettingsTeamsUpdate(pool *pgxpool.Pool) http.HandlerFunc {
 		}
 
 		http.Redirect(w, r, "/admin/settings?ok=teams+updated", http.StatusFound)
+	}
+}
+
+// adminSettingsServerURL обновляет URL сервера для публичных ссылок.
+
+func adminSettingsServerURL(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			http.Redirect(w, r, "/admin/settings?err=bad+form", http.StatusFound)
+			return
+		}
+		url := strings.TrimSpace(r.FormValue("server_url"))
+		// Убедимся, что URL начинается с http:// или https://
+		if url != "" && !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+			url = "http://" + url
+		}
+		// Проверим, существует ли строка настроек.
+		var exists bool
+		err := pool.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM app_settings LIMIT 1)`).Scan(&exists)
+		if err != nil {
+			http.Redirect(w, r, "/admin/settings?err=load+failed", http.StatusFound)
+			return
+		}
+		if exists {
+			_, err = pool.Exec(r.Context(), `UPDATE app_settings SET server_url=$1`, url)
+		} else {
+			_, err = pool.Exec(r.Context(), `INSERT INTO app_settings (server_url) VALUES ($1)`, url)
+		}
+		if err != nil {
+			log.Printf("[adminSettingsServerURL] save server_url: %v", err)
+			http.Redirect(w, r, "/admin/settings?err=save+failed", http.StatusFound)
+			return
+		}
+		http.Redirect(w, r, "/admin/settings?ok=server+url+updated", http.StatusFound)
+	}
+}
+
+// adminTeamsGet отображает страницу управления командами.
+
+func adminTeamsGet(pool *pgxpool.Pool, tpl *template.Template) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		teams, err := listTeams(r.Context(), pool)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		ok, e := flashFromQuery(r)
+		renderAdmin(tpl, w, "admin_teams.html", adminTeamsPageData{Teams: teams, FlashOK: ok, FlashErr: e})
+	}
+}
+
+// adminTeamsCreate добавляет новую команду.
+
+func adminTeamsCreate(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			http.Redirect(w, r, "/admin/teams?err=bad+form", http.StatusFound)
+			return
+		}
+		name := strings.TrimSpace(r.FormValue("name"))
+		if name == "" {
+			http.Redirect(w, r, "/admin/teams?err=empty+name", http.StatusFound)
+			return
+		}
+		var exists int
+		err := pool.QueryRow(r.Context(), `SELECT count(*) FROM teams WHERE name=$1`, name).Scan(&exists)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		if exists > 0 {
+			http.Redirect(w, r, "/admin/teams?err=name+exists", http.StatusFound)
+			return
+		}
+		_, err = pool.Exec(r.Context(), `INSERT INTO teams (name) VALUES ($1)`, name)
+		if err != nil {
+			log.Printf("[adminTeamsCreate] insert team: %v", err)
+			http.Redirect(w, r, "/admin/teams?err=insert+failed", http.StatusFound)
+			return
+		}
+		http.Redirect(w, r, "/admin/teams?ok=team+created", http.StatusFound)
+	}
+}
+
+// adminTeamsUpdate переименовывает команду.
+
+func adminTeamsUpdate(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			http.Redirect(w, r, "/admin/teams?err=bad+form", http.StatusFound)
+			return
+		}
+		idStr := strings.TrimSpace(r.FormValue("id"))
+		name := strings.TrimSpace(r.FormValue("name"))
+		if idStr == "" || name == "" {
+			http.Redirect(w, r, "/admin/teams?err=bad+params", http.StatusFound)
+			return
+		}
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			http.Redirect(w, r, "/admin/teams?err=bad+id", http.StatusFound)
+			return
+		}
+		var exists int
+		err = pool.QueryRow(r.Context(), `SELECT count(*) FROM teams WHERE name=$1 AND id<>$2`, name, id).Scan(&exists)
+		if err != nil {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		if exists > 0 {
+			http.Redirect(w, r, "/admin/teams?err=name+exists", http.StatusFound)
+			return
+		}
+		_, err = pool.Exec(r.Context(), `UPDATE teams SET name=$1 WHERE id=$2`, name, id)
+		if err != nil {
+			log.Printf("[adminTeamsUpdate] update team %d: %v", id, err)
+			http.Redirect(w, r, "/admin/teams?err=update+failed", http.StatusFound)
+			return
+		}
+		http.Redirect(w, r, "/admin/teams?ok=team+updated", http.StatusFound)
+	}
+}
+
+// adminTeamsDelete удаляет команду и все связанные записи.
+
+func adminTeamsDelete(pool *pgxpool.Pool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := chi.URLParam(r, "id")
+		if idStr == "" {
+			http.Redirect(w, r, "/admin/teams?err=bad+id", http.StatusFound)
+			return
+		}
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			http.Redirect(w, r, "/admin/teams?err=bad+id", http.StatusFound)
+			return
+		}
+		tx, err := pool.Begin(r.Context())
+		if err != nil {
+			http.Redirect(w, r, "/admin/teams?err=tx+failed", http.StatusFound)
+			return
+		}
+		defer tx.Rollback(r.Context())
+		if _, err := tx.Exec(r.Context(), `DELETE FROM completions WHERE team_id=$1`, id); err != nil {
+			http.Redirect(w, r, "/admin/teams?err=delete+failed", http.StatusFound)
+			return
+		}
+		if _, err := tx.Exec(r.Context(), `UPDATE tasks SET team_id=NULL WHERE team_id=$1`, id); err != nil {
+			http.Redirect(w, r, "/admin/teams?err=delete+failed", http.StatusFound)
+			return
+		}
+		if _, err := tx.Exec(r.Context(), `DELETE FROM round_resource_requests WHERE team_id=$1`, id); err != nil {
+			http.Redirect(w, r, "/admin/teams?err=delete+failed", http.StatusFound)
+			return
+		}
+		if _, err := tx.Exec(r.Context(), `DELETE FROM teams WHERE id=$1`, id); err != nil {
+			http.Redirect(w, r, "/admin/teams?err=delete+failed", http.StatusFound)
+			return
+		}
+		if err := tx.Commit(r.Context()); err != nil {
+			http.Redirect(w, r, "/admin/teams?err=commit+failed", http.StatusFound)
+			return
+		}
+		http.Redirect(w, r, "/admin/teams?ok=team+deleted", http.StatusFound)
 	}
 }
 

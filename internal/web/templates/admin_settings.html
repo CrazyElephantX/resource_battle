@@ -60,6 +60,8 @@
               <option value="T1.png">T1.png</option>
               <option value="infotecs.png">infotecs.png</option>
               <option value="TN-Digital.png">TN-Digital.png</option>
+              <option value="impulse_t1_dark.jpg">Импульс Т1 (тёмная)</option>
+              <option value="impulse_t1_light.jpg">Импульс Т1 (светлая)</option>
             </select>
           </label>
           <label class="muted">
@@ -91,6 +93,8 @@
               <option value="T1.png">T1.png</option>
               <option value="infotecs.png">infotecs.png</option>
               <option value="TN-Digital.png">TN-Digital.png</option>
+              <option value="impulse_t1_dark.jpg">Импульс Т1 (тёмная)</option>
+              <option value="impulse_t1_light.jpg">Импульс Т1 (светлая)</option>
             </select>
           </label>
           <label class="muted">
@@ -122,6 +126,8 @@
               <option value="T1.png">T1.png</option>
               <option value="infotecs.png">infotecs.png</option>
               <option value="TN-Digital.png">TN-Digital.png</option>
+              <option value="impulse_t1_dark.jpg">Импульс Т1 (тёмная)</option>
+              <option value="impulse_t1_light.jpg">Импульс Т1 (светлая)</option>
             </select>
           </label>
           <label class="muted">
@@ -196,6 +202,27 @@
           </div>
         </div>
         {{end}}
+      </section>
+
+      <div style="height: 16px;"></div>
+
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid var(--card-border-bottom);">
+          <div class="kicker">URL сервера</div>
+        </div>
+        <form method="post" action="/admin/settings/server-url" style="padding: 14px;">
+          <p class="muted" style="margin-bottom: 12px;">
+            Полный URL вашего сервера (например, <code>https://battle.example.com</code> или <code>http://192.168.1.100:8080</code>).
+            Используется для генерации публичных ссылок и QR-кодов подачи результатов.
+          </p>
+          <div style="display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
+            <label class="muted" style="flex:1; min-width: 250px;">
+              Сервер URL
+              <input name="server_url" value="{{.ServerURL}}" class="input" style="margin-top:6px; width:100%;" placeholder="http://192.168.1.100:8080" />
+            </label>
+            <button class="btn" type="submit">Сохранить</button>
+          </div>
+        </form>
       </section>
 
       <div style="height: 16px;"></div>

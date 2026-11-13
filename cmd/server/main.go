@@ -42,7 +42,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:              cfg.Addr(),
-		Handler:           app.New(pool),
+		Handler:           app.NewWithServerURL(pool, cfg.ServerURL),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

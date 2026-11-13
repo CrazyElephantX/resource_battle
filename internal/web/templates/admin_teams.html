@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Админка — Команды</title>
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="header">
+        <div class="header-top">
+          <div>
+            <div class="kicker">Админка</div>
+            <h1 class="title">Команды</h1>
+          </div>
+          <div class="header-menu">
+            {{template "_menu.html"}}
+          </div>
+        </div>
+        <div class="header-logos">
+          <div class="logo-main">
+            <img src="/media/main-logo" alt="Логотип" class="main-logo-img" onerror="this.style.display='none'" />
+          </div>
+          <div class="logo-partner">
+            <img src="/media/partner-logo" alt="Логотип партнёра" class="partner-logo-img" />
+          </div>
+          <div class="logo-partner3">
+            <img src="/media/partner3-logo" alt="Логотип партнёра 3" class="partner-logo-img" onerror="this.style.display='none'" />
+          </div>
+        </div>
+      </header>
+
+      {{if .FlashErr}}
+      <section class="card" style="border-color: var(--flash-err-border);">
+        <div style="padding: 12px 14px;">
+          <div class="muted">Ошибка: {{.FlashErr}}</div>
+        </div>
+      </section>
+      <div style="height: 12px;"></div>
+      {{end}}
+      {{if .FlashOK}}
+      <section class="card" style="border-color: var(--flash-ok-border);">
+        <div style="padding: 12px 14px;">
+          <div class="muted">ОК: {{.FlashOK}}</div>
+        </div>
+      </section>
+      <div style="height: 12px;"></div>
+      {{end}}
+
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid var(--card-border-bottom);">
+          <div class="kicker">Добавить команду</div>
+        </div>
+        <form method="post" action="/admin/teams" style="padding: 14px; display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
+          <label class="muted" style="flex:1; min-width: 200px;">
+            Название новой команды
+            <input name="name" class="input" style="margin-top:6px; width:100%;" placeholder="Например: Команда G" required />
+          </label>
+          <button class="btn" type="submit">Добавить</button>
+        </form>
+      </section>
+
+      <div style="height: 16px;"></div>
+
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid var(--card-border-bottom);">
+          <div class="kicker">Список команд ({{len .Teams}} шт.)</div>
+        </div>
+        {{if .Teams}}
+        <div style="padding: 0 14px 14px;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="text-align:left; padding: 8px 12px;">ID</th>
+                <th style="text-align:left; padding: 8px 12px;">Название</th>
+                <th style="text-align:right; padding: 8px 12px; width: 120px;">Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{range .Teams}}
+              <tr>
+                <td style="padding: 8px 12px;" class="muted">{{.ID}}</td>
+                <td style="padding: 8px 12px;">
+                  <form method="post" action="/admin/teams/{{.ID}}" style="display:inline-flex; align-items:center; gap:8px;">
+                    <input type="hidden" name="id" value="{{.ID}}" />
+                    <input name="name" value="{{.Name}}" class="input" style="min-width: 180px; margin-top:0; padding:6px 10px;" required />
+                    <button type="submit" class="btn" style="padding: 6px 12px; font-size:0.9em;">Сохранить</button>
+                  </form>
+                </td>
+                <td style="padding: 8px 12px; text-align:right;">
+                  <form method="post" action="/admin/teams/{{.ID}}/delete" onsubmit="return confirm('Удалить команду и все связанные данные? Это действие нельзя отменить.');" style="display:inline;">
+                    <button type="submit" class="btn" style="background-color: var(--danger-btn-bg); border-color: var(--danger-btn-border); color: white; padding: 6px 12px; font-size:0.9em;">Удалить</button>
+                  </form>
+                </td>
+              </tr>
+              {{end}}
+            </tbody>
+          </table>
+        </div>
+        {{else}}
+        <div style="padding: 14px;">
+          <p class="muted">Команд пока нет.</p>
+        </div>
+        {{end}}
+      </section>
+
+      <div style="height: 16px;"></div>
+
+      <section class="card">
+        <div style="padding: 14px 14px 10px; border-bottom: 1px solid var(--card-border-bottom);">
+          <div class="kicker">Справка</div>
+        </div>
+        <div style="padding: 14px;">
+          <ul class="muted" style="margin: 0; padding-left: 20px;">
+            <li>Изменение названия команды не влияет на привязку задач и выполнений — они привязаны по идентификаторам.</li>
+            <li>Удаление команды удаляет все связанные записи о выполнениях, запросы на ресурсы и отвязывает привязанные задачи.</li>
+            <li>Чтобы изменить количество команд — добавляйте или удаляйте их.</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
