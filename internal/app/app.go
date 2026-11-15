@@ -80,6 +80,7 @@ func NewWithServerURL(pool *pgxpool.Pool, srvURL string) http.Handler {
 	})
 
 	r.Get("/qr", handleQRPage(pool, tpl))
+	r.Get("/results", handleResults(pool, tpl))
 
 	// Публичные маршруты подачи результатов командами
 	r.Route("/submit", func(r chi.Router) {
